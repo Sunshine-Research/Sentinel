@@ -15,51 +15,46 @@
  */
 package com.alibaba.csp.sentinel;
 
-import com.alibaba.csp.sentinel.util.TimeUtil;
+import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.context.ContextUtil;
 import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
-import com.alibaba.csp.sentinel.context.Context;
+import com.alibaba.csp.sentinel.util.TimeUtil;
 
 /**
  * Each {@link SphU}#entry() will return an {@link Entry}. This class holds information of current invocation:<br/>
+ * 每次调用{@link SphU}#entry()方法时都会返回{@link Entry}
+ * 这个类包含了并发调用时的信息，比如：
+ * 申请资源时的创建时间，用于响应时间统计
+ * 并发节点，用于resource在并发上下文中的分析
+ * 后端Node，用于统计指定的Node，后端Node一般指的是微服务名称
  *
- * <ul>
- * <li>createTime, the create time of this entry, using for rt statistics.</li>
- * <li>current {@link Node}, that is statistics of the resource in current context.</li>
- * <li>origin {@link Node}, that is statistics for the specific origin. Usually the
- * origin could be the Service Consumer's app name, see
- * {@link ContextUtil#enter(String name, String origin)} </li>
- * <li>{@link ResourceWrapper}, that is resource name.</li>
- * <br/>
- * </ul>
- *
- * <p>
- * A invocation tree will be created if we invoke SphU#entry() multi times in the same {@link Context},
- * so parent or child entry may be held by this to form the tree. Since {@link Context} always holds
- * the current entry in the invocation tree, every {@link Entry#exit()} call should modify
- * {@link Context#setCurEntry(Entry)} as parent entry of this.
- * </p>
- *
- * @author qinan.qn
- * @author jialiang.linjl
- * @author leyou(lihao)
- * @see SphU
- * @see Context
- * @see ContextUtil
+ * 上下文可能会持有parent或child entry来形成树，由于上线总是chinyou持有调用树中当前的entry
+ * 所以每次调用{@link Entry#exit()}应修改{@link Context#setCurEntry(Entry)}
  */
 public abstract class Entry implements AutoCloseable {
 
     private static final Object[] OBJECTS0 = new Object[0];
-
+	/**
+	 * resource信息
+	 */
+	protected ResourceWrapper resourceWrapper;
+	/**
+	 * 申请Entry的时间
+	 */
     private long createTime;
-    private Node curNode;
-    /**
-     * {@link Node} of the specific origin, Usually the origin is the Service Consumer.
+	/**
+	 * 当前节点
+	 */
+	private Node curNode;
+	/**
+	 * 指定的后端服务
      */
     private Node originNode;
-    private Throwable error;
-    protected ResourceWrapper resourceWrapper;
+	/**
+	 * 抛出的异常
+	 */
+	private Throwable error;
 
     public Entry(ResourceWrapper resourceWrapper) {
         this.resourceWrapper = resourceWrapper;
@@ -68,12 +63,11 @@ public abstract class Entry implements AutoCloseable {
 
     public ResourceWrapper getResourceWrapper() {
         return resourceWrapper;
-    }
+	}
 
-    /**
-     * Complete the current resource entry and restore the entry stack in context.
-     *
-     * @throws ErrorEntryFreeException if entry in current context does not match current entry
+	/**
+	 * 完成当前的entry，并恢复上线文中的元素栈
+	 * @throws ErrorEntryFreeException 如果上下文中的entry和当前的entry不匹配，抛出entry释放代码
      */
     public void exit() throws ErrorEntryFreeException {
         exit(1, OBJECTS0);

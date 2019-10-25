@@ -24,8 +24,14 @@ public final class ClusterRuleConstant {
     public static final int FLOW_CLUSTER_STRATEGY_NORMAL = 0;
     public static final int FLOW_CLUSTER_STRATEGY_BORROW_REF = 1;
 
-    public static final int FLOW_THRESHOLD_AVG_LOCAL = 0;
-    public static final int FLOW_THRESHOLD_GLOBAL = 1;
+	/**
+	 * 集群限流规则阈值类型-单机平衡
+	 */
+	public static final int FLOW_THRESHOLD_AVG_LOCAL = 0;
+	/**
+	 * 集群限流规则阈值类型-全局总量
+	 */
+	public static final int FLOW_THRESHOLD_GLOBAL = 1;
 
     public static final int DEFAULT_CLUSTER_SAMPLE_COUNT = 10;
 

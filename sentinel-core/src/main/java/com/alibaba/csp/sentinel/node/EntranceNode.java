@@ -15,26 +15,16 @@
  */
 package com.alibaba.csp.sentinel.node;
 
-import com.alibaba.csp.sentinel.context.Context;
-import com.alibaba.csp.sentinel.context.ContextUtil;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
-import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
 
 /**
- * <p>
- * A {@link Node} represents the entrance of the invocation tree.
- * </p>
- * <p>
- * One {@link Context} will related to a {@link EntranceNode},
- * which represents the entrance of the invocation tree. New {@link EntranceNode} will be created if
- * current context does't have one. Note that same context name will share same {@link EntranceNode}
- * globally.
- * </p>
+ * 调用树的入口节点
  *
- * @author qinan.qn
- * @see ContextUtil
- * @see ContextUtil#enter(String, String)
- * @see NodeSelectorSlot
+ * 一个Context会关联一个入口节点
+ * 如果当前Context还没有入口节点，就会创建一个新的
+ * 相同的Context会共享全局的入口节点
+ *
+ * 由于是单向的树，所以入口节点中的方法一般都是统计作用
  */
 public class EntranceNode extends DefaultNode {
 

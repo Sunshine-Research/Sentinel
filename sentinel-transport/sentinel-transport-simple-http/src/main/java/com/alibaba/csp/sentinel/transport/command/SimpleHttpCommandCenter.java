@@ -15,6 +15,15 @@
  */
 package com.alibaba.csp.sentinel.transport.command;
 
+import com.alibaba.csp.sentinel.command.CommandHandler;
+import com.alibaba.csp.sentinel.command.CommandHandlerProvider;
+import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
+import com.alibaba.csp.sentinel.log.CommandCenterLog;
+import com.alibaba.csp.sentinel.transport.CommandCenter;
+import com.alibaba.csp.sentinel.transport.command.http.HttpEventTask;
+import com.alibaba.csp.sentinel.transport.config.TransportConfig;
+import com.alibaba.csp.sentinel.util.StringUtil;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -30,15 +39,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import com.alibaba.csp.sentinel.command.CommandHandler;
-import com.alibaba.csp.sentinel.command.CommandHandlerProvider;
-import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
-import com.alibaba.csp.sentinel.log.CommandCenterLog;
-import com.alibaba.csp.sentinel.transport.CommandCenter;
-import com.alibaba.csp.sentinel.transport.command.http.HttpEventTask;
-import com.alibaba.csp.sentinel.transport.config.TransportConfig;
-import com.alibaba.csp.sentinel.util.StringUtil;
 
 /***
  * The simple command center provides service to exchange information.
@@ -171,79 +171,88 @@ public class SimpleHttpCommandCenter implements CommandCenter {
         return handlerMap.keySet();
     }
 
-    class ServerThread extends Thread {
+	/**
+	 * 避免服务端线程挂起，默认每个Socket的超时时间是3000ms
+	 */
+	private void setSocketSoTimeout(Socket socket) throws SocketException {
+		if (socket != null) {
+			socket.setSoTimeout(DEFAULT_SERVER_SO_TIMEOUT);
+		}
+	}
 
-        private ServerSocket serverSocket;
+	@SuppressWarnings("rawtypes")
+	public static CommandHandler getHandler(String commandName) {
+		return handlerMap.get(commandName);
+	}
 
-        ServerThread(ServerSocket s) {
-            this.serverSocket = s;
-            setName("sentinel-courier-server-accept-thread");
-        }
+	@SuppressWarnings("rawtypes")
+	public static void registerCommands(Map<String, CommandHandler> handlerMap) {
+		if (handlerMap != null) {
+			for (Entry<String, CommandHandler> e : handlerMap.entrySet()) {
+				registerCommand(e.getKey(), e.getValue());
+			}
+		}
+	}
 
-        @Override
-        public void run() {
-            while (true) {
-                Socket socket = null;
-                try {
-                    socket = this.serverSocket.accept();
-                    setSocketSoTimeout(socket);
-                    HttpEventTask eventTask = new HttpEventTask(socket);
-                    bizExecutor.submit(eventTask);
-                } catch (Exception e) {
-                    CommandCenterLog.info("Server error", e);
-                    if (socket != null) {
-                        try {
-                            socket.close();
-                        } catch (Exception e1) {
-                            CommandCenterLog.info("Error when closing an opened socket", e1);
-                        }
-                    }
-                    try {
-                        // In case of infinite log.
-                        Thread.sleep(10);
-                    } catch (InterruptedException e1) {
-                        // Indicates the task should stop.
-                        break;
-                    }
-                }
-            }
-        }
-    }
+	@SuppressWarnings("rawtypes")
+	public static void registerCommand(String commandName, CommandHandler handler) {
+		if (StringUtil.isEmpty(commandName)) {
+			return;
+		}
 
-    @SuppressWarnings("rawtypes")
-    public static CommandHandler getHandler(String commandName) {
-        return handlerMap.get(commandName);
-    }
+		if (handlerMap.containsKey(commandName)) {
+			CommandCenterLog.warn("Register failed (duplicate command): " + commandName);
+			return;
+		}
 
-    @SuppressWarnings("rawtypes")
-    public static void registerCommands(Map<String, CommandHandler> handlerMap) {
-        if (handlerMap != null) {
-            for (Entry<String, CommandHandler> e : handlerMap.entrySet()) {
-                registerCommand(e.getKey(), e.getValue());
-            }
-        }
-    }
+		handlerMap.put(commandName, handler);
+	}
 
-    @SuppressWarnings("rawtypes")
-    public static void registerCommand(String commandName, CommandHandler handler) {
-        if (StringUtil.isEmpty(commandName)) {
-            return;
-        }
+	/**
+	 * 服务端线程
+	 */
+	class ServerThread extends Thread {
+		/**
+		 * Socket连接池
+		 */
+		private ServerSocket serverSocket;
 
-        if (handlerMap.containsKey(commandName)) {
-            CommandCenterLog.warn("Register failed (duplicate command): " + commandName);
-            return;
-        }
+		ServerThread(ServerSocket s) {
+			this.serverSocket = s;
+			setName("sentinel-courier-server-accept-thread");
+		}
 
-        handlerMap.put(commandName, handler);
-    }
-
-    /**
-     * Avoid server thread hang, 3 seconds timeout by default.
-     */
-    private void setSocketSoTimeout(Socket socket) throws SocketException {
-        if (socket != null) {
-            socket.setSoTimeout(DEFAULT_SERVER_SO_TIMEOUT);
-        }
-    }
+		@Override
+		public void run() {
+			while (true) {
+				Socket socket = null;
+				try {
+					// 从队列中获取连接请求
+					socket = this.serverSocket.accept();
+					// 设置当前连接请求的超时时间
+					setSocketSoTimeout(socket);
+					// 创建一个Http事件任务
+					HttpEventTask eventTask = new HttpEventTask(socket);
+					// 提交任务到线程池中
+					bizExecutor.submit(eventTask);
+				} catch (Exception e) {
+					CommandCenterLog.info("Server error", e);
+					if (socket != null) {
+						try {
+							socket.close();
+						} catch (Exception e1) {
+							CommandCenterLog.info("Error when closing an opened socket", e1);
+						}
+					}
+					try {
+						// 避免重复日志
+						Thread.sleep(10);
+					} catch (InterruptedException e1) {
+						// 结束Http任务处理
+						break;
+					}
+				}
+			}
+		}
+	}
 }

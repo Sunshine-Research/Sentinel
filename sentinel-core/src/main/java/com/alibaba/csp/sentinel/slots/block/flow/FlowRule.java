@@ -49,17 +49,20 @@ public class FlowRule extends AbstractRule {
     }
 
     /**
-     * The threshold type of flow control (0: thread count, 1: QPS).
+	 * 流控的阈值类型
+	 * 0：线程数
+	 * 1：QPS总数
+	 * 默认是对QPS进行限流
      */
     private int grade = RuleConstant.FLOW_GRADE_QPS;
 
     /**
-     * Flow control threshold count.
+	 * 限流的阈值数量
      */
     private double count;
 
     /**
-     * Flow control strategy based on invocation chain.
+	 * 基于调用链的流控策略
      *
      * {@link RuleConstant#STRATEGY_DIRECT} for direct flow control (by origin);
      * {@link RuleConstant#STRATEGY_RELATE} for relevant flow control (with relevant resource);
@@ -84,10 +87,12 @@ public class FlowRule extends AbstractRule {
      * Max queueing time in rate limiter behavior.
      */
     private int maxQueueingTimeMs = 500;
-
+	/**
+	 * 是否集群限流配置
+	 */
     private boolean clusterMode;
-    /**
-     * Flow rule config for cluster mode.
+	/**
+	 * 集群限流的相关配置
      */
     private ClusterFlowConfig clusterConfig;
 

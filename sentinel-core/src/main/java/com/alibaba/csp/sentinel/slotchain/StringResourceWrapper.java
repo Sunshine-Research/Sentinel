@@ -18,20 +18,22 @@ package com.alibaba.csp.sentinel.slotchain;
 import com.alibaba.csp.sentinel.EntryType;
 
 /**
- * Common resource wrapper.
- *
- * @author qinan.qn
- * @author jialiang.linjl
+ * 通用ResourceWrapper
  */
 public class StringResourceWrapper extends ResourceWrapper {
 
-    public StringResourceWrapper(String name, EntryType type) {
-        if (name == null) {
-            throw new IllegalArgumentException("Resource name cannot be null");
-        }
-        this.name = name;
-        this.type = type;
-    }
+	/**
+	 * 存储资源名称的Resource Wrapper
+	 * @param name resource name
+	 * @param type 流向类型
+	 */
+	public StringResourceWrapper(String name, EntryType type) {
+		if (name == null) {
+			throw new IllegalArgumentException("Resource name cannot be null");
+		}
+		this.name = name;
+		this.type = type;
+	}
 
     @Override
     public String getName() {

@@ -15,15 +15,15 @@
  */
 package com.alibaba.csp.sentinel;
 
-import java.lang.reflect.Method;
-import java.util.List;
-
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.Rule;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRuleManager;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.alibaba.csp.sentinel.slots.system.SystemRule;
 import com.alibaba.csp.sentinel.slots.system.SystemRuleManager;
+
+import java.lang.reflect.Method;
+import java.util.List;
 
 /**
  * Conceptually, physical or logical resource that need protection should be
@@ -187,17 +187,15 @@ public class SphU {
         return Env.sph.entry(method, type, count, args);
     }
 
-    /**
-     * Checking all {@link Rule}s about the resource.
-     *
-     * @param name  the unique name for the protected resource
-     * @param type  the resource is an inbound or an outbound method. This is used
-     *              to mark whether it can be blocked when the system is unstable,
-     *              only inbound traffic could be blocked by {@link SystemRule}
-     * @param count tokens required
-     * @param args  extra parameters.
-     * @throws BlockException if the block criteria is met, eg. when any rule's threshold is exceeded.
-     */
+	/**
+	 * 检查当前资源的所有规则
+	 * @param name  资源唯一限定名称
+	 * @param type  资源流向，用于标记在系统不稳定的情况下，是否可以进行阻塞
+	 *              SystemRule仅可以阻塞inbound请求
+	 * @param count 获取资源数量
+	 * @param args  其他请求参数
+	 * @throws BlockException 达到了阻塞标准，抛出阻塞异常
+	 */
     public static Entry entry(String name, EntryType type, int count, Object... args) throws BlockException {
         return Env.sph.entry(name, type, count, args);
     }

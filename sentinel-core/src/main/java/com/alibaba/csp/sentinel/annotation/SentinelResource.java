@@ -17,7 +17,11 @@ package com.alibaba.csp.sentinel.annotation;
 
 import com.alibaba.csp.sentinel.EntryType;
 
-import java.lang.annotation.*;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * The annotation indicates a definition of Sentinel resource.
@@ -31,67 +35,70 @@ import java.lang.annotation.*;
 public @interface SentinelResource {
 
     /**
-     * @return name of the Sentinel resource
+	 * @return 资源名称
      */
     String value() default "";
 
     /**
-     * @return the entry type (inbound or outbound), outbound by default
+	 * @return 资源调用方向，默认是向外部进行调用
      */
     EntryType entryType() default EntryType.OUT;
 
     /**
-     * @return name of the block exception function, empty by default
+	 * blockHandler函数的访问范围需要是public
+	 * 返回类型需要与资源方法相匹配
+	 * 参数类型需要与资源方法相匹配，并在最后添加一个额外的参数，类型是BlockException
+	 * blockHandler参数默认需要和原方法在一个类型中
+	 * @return 出现阻塞时的异常调用函数，如果没有，默认为""
      */
     String blockHandler() default "";
 
     /**
-     * The {@code blockHandler} is located in the same class with the original method by default.
-     * However, if some methods share the same signature and intend to set the same block handler,
-     * then users can set the class where the block handler exists. Note that the block handler method
-     * must be static.
-     *
-     * @return the class where the block handler exists, should not provide more than one classes
+	 * 如果出现blockHandler不在资源方法所在的类中，可以使用blockHandlerClass来指定blockHandler方法对应的class
+	 * 需要注意的是blockHandler方法必须为static类型
+	 * @return blockHandler方法所在的类，虽然是数组，但是至多只能提供一个类
      */
     Class<?>[] blockHandlerClass() default {};
 
     /**
-     * @return name of the fallback function, empty by default
+	 * fallback()可以处理除可忽略异常外的所有异常，但是要求：
+	 * 返回值类型必须与资源方法保持一致
+	 * 方法参数列表必须和资源方法保持一致
+	 * 参数可以在后面选配一个Throwable类型用于接收对应的异常
+	 * 需要和资源方法再同一个类中
+	 * @return 资源在被控制后对异常的处理逻辑
      */
     String fallback() default "";
 
     /**
-     * The {@code defaultFallback} is used as the default universal fallback method.
-     * It should not accept any parameters, and the return type should be compatible
-     * with the original method.
-     *
-     * @return name of the default fallback method, empty by default
+	 * defaultFallback方法用于默认的fallback方法名称，用于通用的fallback逻辑
+	 * defaultFallback可以针对除可忽略异常外的所有异常进行处理，但是要求：
+	 * 返回值类型必须与资源方法保持一致
+	 * 方法参数列表必须和资源方法保持一致
+	 * 参数可以在后面选配一个Throwable类型用于接收对应的异常
+	 * 需要和资源方法再同一个类中
+	 * @return 用于默认的fallback方法名称
      * @since 1.6.0
      */
     String defaultFallback() default "";
 
     /**
-     * The {@code fallback} is located in the same class with the original method by default.
-     * However, if some methods share the same signature and intend to set the same fallback,
-     * then users can set the class where the fallback function exists. Note that the shared fallback method
-     * must be static.
-     *
-     * @return the class where the fallback method is located (only single class)
+	 * 如果fallback不能和资源方法声明在同一个类中，可以使用fallbackClass指定fallback方法所在的位置
+	 * 需要注意的是，fallback方法必须声明为static
+	 * @return fallback方法所在的类，虽然是数组，但是至多只能提供一个类
      * @since 1.6.0
      */
     Class<?>[] fallbackClass() default {};
 
     /**
-     * @return the list of exception classes to trace, {@link Throwable} by default
+	 * @return 需要追踪的异常，默认需要追踪Throwable异常
      * @since 1.5.1
      */
     Class<? extends Throwable>[] exceptionsToTrace() default {Throwable.class};
     
     /**
-     * Indicates the exceptions to be ignored. Note that {@code exceptionsToTrace} should
-     * not appear with {@code exceptionsToIgnore} at the same time, or {@code exceptionsToIgnore}
-     * will be of higher precedence.
-     *
+	 * 可以忽略的异常
+	 * 需要注意的是exceptionsToTrace()和exceptionsToIgnore()在同一时间不能相交，或者exceptionsToIgnore()有更高的优先级
      * @return the list of exception classes to ignore, empty by default
      * @since 1.6.0
      */

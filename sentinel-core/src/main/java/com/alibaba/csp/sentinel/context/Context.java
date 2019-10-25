@@ -19,183 +19,161 @@ import com.alibaba.csp.sentinel.Entry;
 import com.alibaba.csp.sentinel.SphO;
 import com.alibaba.csp.sentinel.SphU;
 import com.alibaba.csp.sentinel.node.DefaultNode;
-import com.alibaba.csp.sentinel.node.EntranceNode;
 import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
 
 /**
- * This class holds metadata of current invocation:<br/>
+ * 上下文类
+ * 此类包含了当前调用的metadata：
+ * 入口Node：当前调用树的跟节点
+ * 当前Entry：当前调用的节点
+ * 当前Node：和Entry有关的数据分析
+ * origin：如果想要分开控制不同的invoker/consumer，origin是很有用的
+ * 每次{@link SphU}#entry() or {@link SphO}#entry()调用都应该在同一个上下文中
+ * 如果没有使用显示调用 {@link ContextUtil}#enter() explicitly，就会使用默认的上下文
  *
- * <ul>
- * <li>the {@link EntranceNode}: the root of the current invocation
- * tree.</li>
- * <li>the current {@link Entry}: the current invocation point.</li>
- * <li>the current {@link Node}: the statistics related to the
- * {@link Entry}.</li>
- * <li>the origin: The origin is useful when we want to control different
- * invoker/consumer separately. Usually the origin could be the Service Consumer's app name
- * or origin IP. </li>
- * </ul>
- * <p>
- * Each {@link SphU}#entry() or {@link SphO}#entry() should be in a {@link Context},
- * if we don't invoke {@link ContextUtil}#enter() explicitly, DEFAULT context will be used.
- * </p>
- * <p>
- * A invocation tree will be created if we invoke {@link SphU}#entry() multi times in
- * the same context.
- * </p>
- * <p>
- * Same resource in different context will count separately, see {@link NodeSelectorSlot}.
- * </p>
+ * 在同一个上下文中如果多次调用{@link SphU}#entry()，就会产生一个调用树
  *
- * @author jialiang.linjl
- * @author leyou(lihao)
- * @author Eric Zhao
- * @see ContextUtil
- * @see NodeSelectorSlot
+ * 相同的resource在不同的上下文中，令牌数量的计算也是分开的，具体请看{@link NodeSelectorSlot}
  */
 public class Context {
 
-    /**
-     * Context name.
-     */
-    private final String name;
+	/**
+	 * 上下文名称
+	 */
+	private final String name;
+	/**
+	 * 是否是异步的
+	 */
+	private final boolean async;
+	/**
+	 * 调用树的入口节点
+	 */
+	private DefaultNode entranceNode;
+	/**
+	 * 当前正在处理的entry
+	 */
+	private Entry curEntry;
+	/**
+	 * 当前上下文的origin名称，通常证明不同的invoker，比如service服务名称或者origin的ip地址
+	 */
+	private String origin = "";
 
-    /**
-     * The entrance node of current invocation tree.
-     */
-    private DefaultNode entranceNode;
+	public Context(DefaultNode entranceNode, String name) {
+		this(name, entranceNode, false);
+	}
 
-    /**
-     * Current processing entry.
-     */
-    private Entry curEntry;
+	public Context(String name, DefaultNode entranceNode, boolean async) {
+		this.name = name;
+		this.entranceNode = entranceNode;
+		this.async = async;
+	}
 
-    /**
-     * The origin of this context (usually indicate different invokers, e.g. service consumer name or origin IP).
-     */
-    private String origin = "";
+	/**
+	 * 创建异步的上下文
+	 * @param entranceNode 上下文的入口node
+	 * @param name         上下文名称
+	 * @return 新创建的上下文
+	 * @since 0.2.0
+	 */
+	public static Context newAsyncContext(DefaultNode entranceNode, String name) {
+		return new Context(name, entranceNode, true);
+	}
 
-    private final boolean async;
+	public boolean isAsync() {
+		return async;
+	}
 
-    /**
-     * Create a new async context.
-     *
-     * @param entranceNode entrance node of the context
-     * @param name context name
-     * @return the new created context
-     * @since 0.2.0
-     */
-    public static Context newAsyncContext(DefaultNode entranceNode, String name) {
-        return new Context(name, entranceNode, true);
-    }
+	public String getName() {
+		return name;
+	}
 
-    public Context(DefaultNode entranceNode, String name) {
-        this(name, entranceNode, false);
-    }
+	public Node getCurNode() {
+		return curEntry.getCurNode();
+	}
 
-    public Context(String name, DefaultNode entranceNode, boolean async) {
-        this.name = name;
-        this.entranceNode = entranceNode;
-        this.async = async;
-    }
+	public Context setCurNode(Node node) {
+		this.curEntry.setCurNode(node);
+		return this;
+	}
 
-    public boolean isAsync() {
-        return async;
-    }
+	public Entry getCurEntry() {
+		return curEntry;
+	}
 
-    public String getName() {
-        return name;
-    }
+	public Context setCurEntry(Entry curEntry) {
+		this.curEntry = curEntry;
+		return this;
+	}
 
-    public Node getCurNode() {
-        return curEntry.getCurNode();
-    }
+	public String getOrigin() {
+		return origin;
+	}
 
-    public Context setCurNode(Node node) {
-        this.curEntry.setCurNode(node);
-        return this;
-    }
+	public Context setOrigin(String origin) {
+		this.origin = origin;
+		return this;
+	}
 
-    public Entry getCurEntry() {
-        return curEntry;
-    }
+	public double getOriginTotalQps() {
+		return getOriginNode() == null ? 0 : getOriginNode().totalQps();
+	}
 
-    public Context setCurEntry(Entry curEntry) {
-        this.curEntry = curEntry;
-        return this;
-    }
+	public double getOriginBlockQps() {
+		return getOriginNode() == null ? 0 : getOriginNode().blockQps();
+	}
 
-    public String getOrigin() {
-        return origin;
-    }
+	public double getOriginPassReqQps() {
+		return getOriginNode() == null ? 0 : getOriginNode().successQps();
+	}
 
-    public Context setOrigin(String origin) {
-        this.origin = origin;
-        return this;
-    }
+	public double getOriginPassQps() {
+		return getOriginNode() == null ? 0 : getOriginNode().passQps();
+	}
 
-    public double getOriginTotalQps() {
-        return getOriginNode() == null ? 0 : getOriginNode().totalQps();
-    }
+	public long getOriginTotalRequest() {
+		return getOriginNode() == null ? 0 : getOriginNode().totalRequest();
+	}
 
-    public double getOriginBlockQps() {
-        return getOriginNode() == null ? 0 : getOriginNode().blockQps();
-    }
+	public long getOriginBlockRequest() {
+		return getOriginNode() == null ? 0 : getOriginNode().blockRequest();
+	}
 
-    public double getOriginPassReqQps() {
-        return getOriginNode() == null ? 0 : getOriginNode().successQps();
-    }
+	public double getOriginAvgRt() {
+		return getOriginNode() == null ? 0 : getOriginNode().avgRt();
+	}
 
-    public double getOriginPassQps() {
-        return getOriginNode() == null ? 0 : getOriginNode().passQps();
-    }
+	public int getOriginCurThreadNum() {
+		return getOriginNode() == null ? 0 : getOriginNode().curThreadNum();
+	}
 
-    public long getOriginTotalRequest() {
-        return getOriginNode() == null ? 0 : getOriginNode().totalRequest();
-    }
+	public DefaultNode getEntranceNode() {
+		return entranceNode;
+	}
 
-    public long getOriginBlockRequest() {
-        return getOriginNode() == null ? 0 : getOriginNode().blockRequest();
-    }
+	/**
+	 * @return 获取当前节点的parent节点
+	 */
+	public Node getLastNode() {
+		if (curEntry != null && curEntry.getLastNode() != null) {
+			return curEntry.getLastNode();
+		} else {
+			return entranceNode;
+		}
+	}
 
-    public double getOriginAvgRt() {
-        return getOriginNode() == null ? 0 : getOriginNode().avgRt();
-    }
+	public Node getOriginNode() {
+		return curEntry == null ? null : curEntry.getOriginNode();
+	}
 
-    public int getOriginCurThreadNum() {
-        return getOriginNode() == null ? 0 : getOriginNode().curThreadNum();
-    }
-
-    public DefaultNode getEntranceNode() {
-        return entranceNode;
-    }
-
-    /**
-     * Get the parent {@link Node} of the current.
-     *
-     * @return the parent node of the current.
-     */
-    public Node getLastNode() {
-        if (curEntry != null && curEntry.getLastNode() != null) {
-            return curEntry.getLastNode();
-        } else {
-            return entranceNode;
-        }
-    }
-
-    public Node getOriginNode() {
-        return curEntry == null ? null : curEntry.getOriginNode();
-    }
-
-    @Override
-    public String toString() {
-        return "Context{" +
-            "name='" + name + '\'' +
-            ", entranceNode=" + entranceNode +
-            ", curEntry=" + curEntry +
-            ", origin='" + origin + '\'' +
-            ", async=" + async +
-            '}';
-    }
+	@Override
+	public String toString() {
+		return "Context{" +
+				"name='" + name + '\'' +
+				", entranceNode=" + entranceNode +
+				", curEntry=" + curEntry +
+				", origin='" + origin + '\'' +
+				", async=" + async +
+				'}';
+	}
 }

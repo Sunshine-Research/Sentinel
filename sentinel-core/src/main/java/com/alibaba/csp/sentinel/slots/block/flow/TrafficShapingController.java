@@ -18,9 +18,11 @@ package com.alibaba.csp.sentinel.slots.block.flow;
 import com.alibaba.csp.sentinel.node.Node;
 
 /**
- * A universal interface for traffic shaping controller.
- *
- * @author jialiang.linjl
+ * 流量整形控制器的统一接口
+ * 流量整形：限制流出某一网络的某一连接的流量与突发，使这类报文以比较均匀的速度向外发送
+ * 流量整形通常使用缓冲区或者令牌桶来完成
+ * 当报文的发送速度过快时，首先在缓冲区进行缓存，在令牌桶的控制下再均匀地发送这些被缓冲的报文
+ * 是一种主动调整输出速率的措施
  */
 public interface TrafficShapingController {
 

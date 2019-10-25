@@ -20,36 +20,40 @@ import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.slots.block.AbstractRule;
 
 /**
- * <p>
- * Sentinel System Rule makes the inbound traffic and capacity meet. It takes
- * average RT, QPS and thread count of requests into account. And it also
- * provides a measurement of system's load, but only available on Linux.
- * </p>
- * <p>
- * We recommend to coordinate {@link #highestSystemLoad}, {@link #qps}, {@link #avgRt}
- * and {@link #maxThread} to make sure your system run in safety level.
- * </p>
- * <p>
- * To set the threshold appropriately, performance test may be needed.
- * </p>
+ * 系统保护规则
+ * Sentinel的系统保护规则用于管理入口和容量限制
+ * 它有平均响应时间、入口总QPS、请求并发线程数、只在Linux上可用的系统负载
  *
- * @author jialiang.linjl
- * @author Carpenter Lee
+ * 为了合理的设定阈值，需要进行性能测试
  * @see SystemRuleManager
  */
 public class SystemRule extends AbstractRule {
 
     /**
-     * negative value means no threshold checking.
+	 * 系统最大的load
+	 * 负数表示没有阈值设定
      */
     private double highestSystemLoad = -1;
     /**
-     * cpu usage, between [0, 1]
+	 * CPU使用率
+	 * 负数表示没有阈值设定
      */
-    private double highestCpuUsage = -1;
-    private double qps = -1;
+	private double highestCpuUsage = -1;
+	/**
+	 * 所有入口资源的QPS
+	 * 负数表示没有阈值设定
+	 */
+	private double qps = -1;
+	/**
+	 * 所有入口流量的平均响应时间
+	 * 负数表示没有阈值设定
+	 */
     private long avgRt = -1;
-    private long maxThread = -1;
+	/**
+	 * 入口流量的最大线程并发数
+	 * 负数表示没有阈值设定
+	 */
+	private long maxThread = -1;
 
     public double getQps() {
         return qps;

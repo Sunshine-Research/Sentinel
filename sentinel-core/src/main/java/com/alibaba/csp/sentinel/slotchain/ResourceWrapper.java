@@ -18,10 +18,8 @@ package com.alibaba.csp.sentinel.slotchain;
 import com.alibaba.csp.sentinel.EntryType;
 
 /**
- * A wrapper of resource name and {@link EntryType}.
- *
- * @author qinan.qn
- * @author jialiang.linjl
+ * resource的包装类
+ * 仅有资源名称和资源流向两个部分
  */
 public abstract class ResourceWrapper {
 

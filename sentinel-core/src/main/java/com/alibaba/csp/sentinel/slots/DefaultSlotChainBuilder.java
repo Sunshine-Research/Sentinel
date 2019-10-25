@@ -28,15 +28,14 @@ import com.alibaba.csp.sentinel.slots.statistic.StatisticSlot;
 import com.alibaba.csp.sentinel.slots.system.SystemSlot;
 
 /**
- * Builder for a default {@link ProcessorSlotChain}.
- *
- * @author qinan.qn
- * @author leyou
+ * 默认的slot{@link ProcessorSlotChain}.
  */
 public class DefaultSlotChainBuilder implements SlotChainBuilder {
 
     @Override
     public ProcessorSlotChain build() {
+		// 一个默认的{@link ProcessorSlotChain}，相当于链
+		// Slot相当于链上的槽，各种类型的Slot相当于插入槽的组件
         ProcessorSlotChain chain = new DefaultProcessorSlotChain();
         chain.addLast(new NodeSelectorSlot());
         chain.addLast(new ClusterBuilderSlot());
@@ -46,7 +45,6 @@ public class DefaultSlotChainBuilder implements SlotChainBuilder {
         chain.addLast(new AuthoritySlot());
         chain.addLast(new FlowSlot());
         chain.addLast(new DegradeSlot());
-
         return chain;
     }
 

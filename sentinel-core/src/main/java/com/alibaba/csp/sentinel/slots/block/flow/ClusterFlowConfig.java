@@ -19,32 +19,38 @@ import com.alibaba.csp.sentinel.slots.block.ClusterRuleConstant;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 
 /**
- * Flow rule config in cluster mode.
- *
- * @author Eric Zhao
- * @since 1.4.0
+ * 集群限流的专门配置，和FlowRule是两个概念
  */
 public class ClusterFlowConfig {
 
     /**
-     * Global unique ID.
+	 * 全局唯一规则ID，由集群限流管理端分配
      */
     private Long flowId;
 
     /**
-     * Threshold type (average by local value or global value).
+	 * 阈值类型
+	 * 0：单机平衡
+	 * 1：全局总量
      */
     private int thresholdType = ClusterRuleConstant.FLOW_THRESHOLD_AVG_LOCAL;
-    private boolean fallbackToLocalWhenFail = true;
+	/**
+	 * 在client连接失败或者通信失败时，是否退化到本地的限流模式
+	 * 默认开启本地限流模式
+	 */
+	private boolean fallbackToLocalWhenFail = true;
 
     /**
      * 0: normal.
      */
     private int strategy = ClusterRuleConstant.FLOW_CLUSTER_STRATEGY_NORMAL;
-
+	/**
+	 *
+	 */
     private int sampleCount = ClusterRuleConstant.DEFAULT_CLUSTER_SAMPLE_COUNT;
-    /**
-     * The time interval length of the statistic sliding window (in milliseconds)
+	/**
+	 * 滑动窗口的时间间隔
+	 * 默认1s
      */
     private int windowIntervalMs = RuleConstant.DEFAULT_WINDOW_INTERVAL_MS;
 

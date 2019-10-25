@@ -39,7 +39,10 @@ public final class RuleConstant {
     public static final int AUTHORITY_WHITE = 0;
     public static final int AUTHORITY_BLACK = 1;
 
-    public static final int STRATEGY_DIRECT = 0;
+	/**
+	 * 流控策略-
+	 */
+	public static final int STRATEGY_DIRECT = 0;
     public static final int STRATEGY_RELATE = 1;
     public static final int STRATEGY_CHAIN = 2;
 

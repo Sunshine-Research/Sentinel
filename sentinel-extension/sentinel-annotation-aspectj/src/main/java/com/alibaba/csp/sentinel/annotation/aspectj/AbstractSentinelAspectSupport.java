@@ -21,7 +21,6 @@ import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.util.MethodUtil;
 import com.alibaba.csp.sentinel.util.StringUtil;
-
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
 
@@ -52,11 +51,10 @@ public abstract class AbstractSentinelAspectSupport {
     }
 
     /**
-     * Check whether the exception is in provided list of exception classes.
-     *
-     * @param ex         provided throwable
-     * @param exceptions list of exceptions
-     * @return true if it is in the list, otherwise false
+	 * 判断异常是否属于提供的异常类处理集合中
+	 * @param ex         当前出现的异常
+	 * @param exceptions 开发者提供的自定义可处理异常
+	 * @return 在自定义可处理异常集合中，返回true，否则，返回false
      */
     protected boolean exceptionBelongsTo(Throwable ex, Class<? extends Throwable>[] exceptions) {
         if (exceptions == null) {

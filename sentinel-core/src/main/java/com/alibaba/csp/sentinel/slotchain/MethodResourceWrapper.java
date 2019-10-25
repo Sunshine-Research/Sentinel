@@ -15,44 +15,47 @@
  */
 package com.alibaba.csp.sentinel.slotchain;
 
-import java.lang.reflect.Method;
-
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.util.IdUtil;
 import com.alibaba.csp.sentinel.util.MethodUtil;
 
+import java.lang.reflect.Method;
+
 /**
- * Resource wrapper for method invocation.
- *
- * @author qinan.qn
+ * 方法调用的ResourceWrapper
  */
 public class MethodResourceWrapper extends ResourceWrapper {
 
-    private transient Method method;
+	private transient Method method;
 
-    public MethodResourceWrapper(Method method, EntryType type) {
-        this.method = method;
-        this.name = MethodUtil.resolveMethodName(method);
-        this.type = type;
-    }
+	/**
+	 * 存储调用方法资源的Resource Wrapper
+	 * @param method resource method name
+	 * @param type   流向类型
+	 */
+	public MethodResourceWrapper(Method method, EntryType type) {
+		this.method = method;
+		this.name = MethodUtil.resolveMethodName(method);
+		this.type = type;
+	}
 
-    @Override
-    public String getName() {
-        return name;
-    }
+	@Override
+	public String getName() {
+		return name;
+	}
 
-    public Method getMethod() {
-        return method;
-    }
+	public Method getMethod() {
+		return method;
+	}
 
-    @Override
-    public String getShowName() {
-        return IdUtil.truncate(this.name);
-    }
+	@Override
+	public String getShowName() {
+		return IdUtil.truncate(this.name);
+	}
 
-    @Override
-    public EntryType getType() {
-        return type;
-    }
+	@Override
+	public EntryType getType() {
+		return type;
+	}
 
 }

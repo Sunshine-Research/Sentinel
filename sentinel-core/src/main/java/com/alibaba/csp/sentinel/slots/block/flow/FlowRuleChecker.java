@@ -15,14 +15,12 @@
  */
 package com.alibaba.csp.sentinel.slots.block.flow;
 
-import java.util.Collection;
-
 import com.alibaba.csp.sentinel.cluster.ClusterStateManager;
-import com.alibaba.csp.sentinel.cluster.server.EmbeddedClusterTokenServerProvider;
-import com.alibaba.csp.sentinel.cluster.client.TokenClientProvider;
-import com.alibaba.csp.sentinel.cluster.TokenResultStatus;
 import com.alibaba.csp.sentinel.cluster.TokenResult;
+import com.alibaba.csp.sentinel.cluster.TokenResultStatus;
 import com.alibaba.csp.sentinel.cluster.TokenService;
+import com.alibaba.csp.sentinel.cluster.client.TokenClientProvider;
+import com.alibaba.csp.sentinel.cluster.server.EmbeddedClusterTokenServerProvider;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.node.DefaultNode;
@@ -34,10 +32,10 @@ import com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot;
 import com.alibaba.csp.sentinel.util.StringUtil;
 import com.alibaba.csp.sentinel.util.function.Function;
 
+import java.util.Collection;
+
 /**
- * Rule checker for flow control rules.
- *
- * @author Eric Zhao
+ * 流控规则校验器
  */
 public class FlowRuleChecker {
 
@@ -46,8 +44,10 @@ public class FlowRuleChecker {
         if (ruleProvider == null || resource == null) {
             return;
         }
+		// 获取当前resource的所有流控规则集合
         Collection<FlowRule> rules = ruleProvider.apply(resource.getName());
         if (rules != null) {
+			// 遍历并校验
             for (FlowRule rule : rules) {
                 if (!canPassCheck(rule, context, node, count, prioritized)) {
                     throw new FlowException(rule.getLimitApp(), rule);
@@ -68,10 +68,11 @@ public class FlowRuleChecker {
             return true;
         }
 
+		// 开启集群模式，进行集群模式校验
         if (rule.isClusterMode()) {
             return passClusterCheck(rule, context, node, acquireCount, prioritized);
         }
-
+		// 进行本地流控校验
         return passLocalCheck(rule, context, node, acquireCount, prioritized);
     }
 

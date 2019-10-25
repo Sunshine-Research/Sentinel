@@ -28,15 +28,18 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
  * @since 0.2.0
  */
 public class AsyncEntry extends CtEntry {
-
+	/**
+	 * 异步上下文
+	 */
     private Context asyncContext;
 
     AsyncEntry(ResourceWrapper resourceWrapper, ProcessorSlot<Object> chain, Context context) {
         super(resourceWrapper, chain, context);
     }
 
-    /**
-     * Remove current entry from local context, but does not exit.
+	/**
+	 * 从本地上下文中移除当前entry
+	 * 我清理我自己
      */
     void cleanCurrentEntryInLocal() {
         if (context instanceof NullContext) {
@@ -80,7 +83,9 @@ public class AsyncEntry extends CtEntry {
 
     @Override
     protected void clearEntryContext() {
+		// 上下文置为null
         super.clearEntryContext();
+		// 异步上下文也置为null
         this.asyncContext = null;
     }
 

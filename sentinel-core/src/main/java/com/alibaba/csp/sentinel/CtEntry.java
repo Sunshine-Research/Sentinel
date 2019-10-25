@@ -24,94 +24,111 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 
 /**
  * Linked entry within current context.
- *
  * @author jialiang.linjl
  * @author Eric Zhao
  */
 class CtEntry extends Entry {
 
-    protected Entry parent = null;
-    protected Entry child = null;
+	protected Entry parent = null;
+	protected Entry child = null;
 
-    protected ProcessorSlot<Object> chain;
-    protected Context context;
+	protected ProcessorSlot<Object> chain;
+	protected Context context;
 
-    CtEntry(ResourceWrapper resourceWrapper, ProcessorSlot<Object> chain, Context context) {
-        super(resourceWrapper);
-        this.chain = chain;
-        this.context = context;
+	CtEntry(ResourceWrapper resourceWrapper, ProcessorSlot<Object> chain, Context context) {
+		super(resourceWrapper);
+		this.chain = chain;
+		this.context = context;
 
-        setUpEntryFor(context);
-    }
+		setUpEntryFor(context);
+	}
 
-    private void setUpEntryFor(Context context) {
-        // The entry should not be associated to NullContext.
-        if (context instanceof NullContext) {
-            return;
-        }
-        this.parent = context.getCurEntry();
-        if (parent != null) {
-            ((CtEntry)parent).child = this;
-        }
-        context.setCurEntry(this);
-    }
+	private void setUpEntryFor(Context context) {
+		// The entry should not be associated to NullContext.
+		if (context instanceof NullContext) {
+			return;
+		}
+		this.parent = context.getCurEntry();
+		if (parent != null) {
+			((CtEntry) parent).child = this;
+		}
+		context.setCurEntry(this);
+	}
 
-    @Override
-    public void exit(int count, Object... args) throws ErrorEntryFreeException {
-        trueExit(count, args);
-    }
+	@Override
+	public void exit(int count, Object... args) throws ErrorEntryFreeException {
+		trueExit(count, args);
+	}
 
-    protected void exitForContext(Context context, int count, Object... args) throws ErrorEntryFreeException {
-        if (context != null) {
-            // Null context should exit without clean-up.
-            if (context instanceof NullContext) {
-                return;
-            }
-            if (context.getCurEntry() != this) {
-                String curEntryNameInContext = context.getCurEntry() == null ? null : context.getCurEntry().getResourceWrapper().getName();
-                // Clean previous call stack.
-                CtEntry e = (CtEntry)context.getCurEntry();
-                while (e != null) {
-                    e.exit(count, args);
-                    e = (CtEntry)e.parent;
-                }
-                String errorMessage = String.format("The order of entry exit can't be paired with the order of entry"
-                    + ", current entry in context: <%s>, but expected: <%s>", curEntryNameInContext, resourceWrapper.getName());
-                throw new ErrorEntryFreeException(errorMessage);
-            } else {
-                if (chain != null) {
-                    chain.exit(context, resourceWrapper, count, args);
-                }
-                // Restore the call stack.
-                context.setCurEntry(parent);
-                if (parent != null) {
-                    ((CtEntry)parent).child = null;
-                }
-                if (parent == null) {
-                    // Default context (auto entered) will be exited automatically.
-                    if (ContextUtil.isDefaultContext(context)) {
-                        ContextUtil.exit();
-                    }
-                }
-                // Clean the reference of context in current entry to avoid duplicate exit.
-                clearEntryContext();
-            }
-        }
-    }
+	/**
+	 * 给定entry退出当前上下文
+	 * @param context entry申请时加入的上下文
+	 * @param count   释放的令牌数量
+	 * @param args    用户的请求参数
+	 * @throws ErrorEntryFreeException entry不匹配，抛出释放异常
+	 */
+	protected void exitForContext(Context context, int count, Object... args) throws ErrorEntryFreeException {
+		// 存在上下文
+		if (context != null) {
+			// 如果是NullContext，无需进行清理，直接返回
+			if (context instanceof NullContext) {
+				return;
+			}
+			// 如果上下文中，当前处理的节点，并不是给定节点
+			if (context.getCurEntry() != this) {
+				// 获取上下文中当前entry的resource name
+				String curEntryNameInContext = context.getCurEntry() == null ? null : context.getCurEntry().getResourceWrapper().getName();
+				// 清理上一个entry的调用栈
+				CtEntry e = (CtEntry) context.getCurEntry();
+				while (e != null) {
+					e.exit(count, args);
+					e = (CtEntry) e.parent;
+				}
+				String errorMessage = String.format("The order of entry exit can't be paired with the order of entry"
+						+ ", current entry in context: <%s>, but expected: <%s>", curEntryNameInContext, resourceWrapper.getName());
+				// 抛出释放异常错误
+				throw new ErrorEntryFreeException(errorMessage);
+			} else {
+				// 如果存在ProcessorSlot，使用ProcessorSlot释放给定entry
+				if (chain != null) {
+					chain.exit(context, resourceWrapper, count, args);
+				}
+				// 恢复调用栈
+				context.setCurEntry(parent);
+				// 清理parent entry的尾部entry
+				if (parent != null) {
+					((CtEntry) parent).child = null;
+				}
+				// 如果没有parent entry
+				if (parent == null) {
+					// 确认是否使用默认的上下文
+					// 默认上下文是自动进入，自动退出的
+					if (ContextUtil.isDefaultContext(context)) {
+						ContextUtil.exit();
+					}
+				}
+				// 清理当前entry在上下文中的引用，避免发生重复释放
+				clearEntryContext();
+			}
+		}
+	}
 
-    protected void clearEntryContext() {
-        this.context = null;
-    }
+	/**
+	 * 清理当前entry在上下文中的引用，避免发生重复释放
+	 */
+	protected void clearEntryContext() {
+		this.context = null;
+	}
 
-    @Override
-    protected Entry trueExit(int count, Object... args) throws ErrorEntryFreeException {
-        exitForContext(context, count, args);
+	@Override
+	protected Entry trueExit(int count, Object... args) throws ErrorEntryFreeException {
+		exitForContext(context, count, args);
 
-        return parent;
-    }
+		return parent;
+	}
 
-    @Override
-    public Node getLastNode() {
-        return parent == null ? null : parent.getCurNode();
-    }
+	@Override
+	public Node getLastNode() {
+		return parent == null ? null : parent.getCurNode();
+	}
 }

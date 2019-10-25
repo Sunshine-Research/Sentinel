@@ -15,10 +15,6 @@
  */
 package com.alibaba.csp.sentinel.context;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
-
 import com.alibaba.csp.sentinel.Constants;
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.SphO;
@@ -29,6 +25,10 @@ import com.alibaba.csp.sentinel.node.EntranceNode;
 import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slotchain.StringResourceWrapper;
 import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Utility class to get or create {@link Context} in current thread.
@@ -44,33 +44,41 @@ import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
  */
 public class ContextUtil {
 
-    /**
-     * Store the context in ThreadLocal for easy access.
+	/**
+	 * 超出
+	 */
+	private static final Context NULL_CONTEXT = new NullContext();
+	/**
+	 * 在ThreadLocal中存储context用于快速访问
      */
     private static ThreadLocal<Context> contextHolder = new ThreadLocal<>();
 
-    /**
-     * Holds all {@link EntranceNode}. Each {@link EntranceNode} is associated with a distinct context name.
+	private static final ReentrantLock LOCK = new ReentrantLock();
+	/**
+	 * 保存了所有的Context的入口节点
+	 * 每个入口节点关联了一个独立的Context名称
      */
     private static volatile Map<String, DefaultNode> contextNameNodeMap = new HashMap<>();
 
-    private static final ReentrantLock LOCK = new ReentrantLock();
-    private static final Context NULL_CONTEXT = new NullContext();
-
     static {
-        // Cache the entrance node for default context.
+		// 初始化默认的Context，并缓存入口节点
         initDefaultContext();
-    }
+	}
 
-    private static void initDefaultContext() {
-        String defaultContextName = Constants.CONTEXT_DEFAULT_NAME;
-        EntranceNode node = new EntranceNode(new StringResourceWrapper(defaultContextName, EntryType.IN), null);
-        Constants.ROOT.addChild(node);
-        contextNameNodeMap.put(defaultContextName, node);
-    }
+	/**
+	 * 初始化默认Context
+	 */
+	private static void initDefaultContext() {
+		// 获取默认的Context名称：sentinel_default_context
+		String defaultContextName = Constants.CONTEXT_DEFAULT_NAME;
+		// 创建入口节点，入口节点的流向默认是入口流向，集群节点为null
+		EntranceNode node = new EntranceNode(new StringResourceWrapper(defaultContextName, EntryType.IN), null);
+		Constants.ROOT.addChild(node);
+		contextNameNodeMap.put(defaultContextName, node);
+	}
 
-    /**
-     * Not thread-safe, only for test.
+	/**
+	 * 非线程安全，仅用于测试
      */
     static void resetContextMap() {
         if (contextNameNodeMap != null) {
@@ -228,11 +236,8 @@ public class ContextUtil {
         return Constants.CONTEXT_DEFAULT_NAME.equals(context.getName());
     }
 
-    /**
-     * Get {@link Context} of current thread.
-     *
-     * @return context of current thread. Null value will be return if current
-     * thread does't have context.
+	/**
+	 * @return 获取当前线程的Context
      */
     public static Context getContext() {
         return contextHolder.get();

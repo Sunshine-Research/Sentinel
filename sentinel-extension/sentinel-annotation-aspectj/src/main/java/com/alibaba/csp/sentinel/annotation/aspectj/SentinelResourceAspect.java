@@ -41,37 +41,43 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
 
     @Around("sentinelResourceAnnotationPointcut()")
     public Object invokeResourceWithSentinel(ProceedingJoinPoint pjp) throws Throwable {
+		// 解析切点植入的方法
         Method originMethod = resolveMethod(pjp);
-
+		// 获取业务方法的@SentinelResource的注解信息
         SentinelResource annotation = originMethod.getAnnotation(SentinelResource.class);
         if (annotation == null) {
-            // Should not go through here.
+			// 如果方法实际上没有使用注解，那么不应该走到这里，抛出非法状态异常
             throw new IllegalStateException("Wrong state for SentinelResource annotation");
         }
+		// 获取需要控制的资源名称
         String resourceName = getResourceName(annotation.value(), originMethod);
+		// 获取控制的资源类型
         EntryType entryType = annotation.entryType();
         Entry entry = null;
         try {
+			// 创建entry，并上报当前请求的资源信息
             entry = SphU.entry(resourceName, entryType, 1, pjp.getArgs());
-            Object result = pjp.proceed();
-            return result;
+			return pjp.proceed();
         } catch (BlockException ex) {
+			// 对阻塞异常进行处理
             return handleBlockException(pjp, annotation, ex);
         } catch (Throwable ex) {
             Class<? extends Throwable>[] exceptionsToIgnore = annotation.exceptionsToIgnore();
-            // The ignore list will be checked first.
+			// 首先判断异常是否可以忽略
             if (exceptionsToIgnore.length > 0 && exceptionBelongsTo(ex, exceptionsToIgnore)) {
                 throw ex;
             }
+			// 接下来判断
             if (exceptionBelongsTo(ex, annotation.exceptionsToTrace())) {
                 traceException(ex, annotation);
                 return handleFallback(pjp, annotation, ex);
             }
 
-            // No fallback function can handle the exception, so throw it out.
+			// 没有可以处理fallback函数可以处理此异常，只能抛出
             throw ex;
         } finally {
             if (entry != null) {
+				// 请求占用完成，释放请求
                 entry.exit(1, pjp.getArgs());
             }
         }

@@ -15,6 +15,15 @@
  */
 package com.alibaba.csp.sentinel.transport.command.http;
 
+import com.alibaba.csp.sentinel.command.CommandHandler;
+import com.alibaba.csp.sentinel.command.CommandRequest;
+import com.alibaba.csp.sentinel.command.CommandResponse;
+import com.alibaba.csp.sentinel.config.SentinelConfig;
+import com.alibaba.csp.sentinel.log.CommandCenterLog;
+import com.alibaba.csp.sentinel.transport.command.SimpleHttpCommandCenter;
+import com.alibaba.csp.sentinel.transport.util.HttpCommandUtils;
+import com.alibaba.csp.sentinel.util.StringUtil;
+
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.InputStreamReader;
@@ -25,15 +34,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
-
-import com.alibaba.csp.sentinel.command.CommandHandler;
-import com.alibaba.csp.sentinel.command.CommandRequest;
-import com.alibaba.csp.sentinel.command.CommandResponse;
-import com.alibaba.csp.sentinel.config.SentinelConfig;
-import com.alibaba.csp.sentinel.log.CommandCenterLog;
-import com.alibaba.csp.sentinel.transport.command.SimpleHttpCommandCenter;
-import com.alibaba.csp.sentinel.transport.util.HttpCommandUtils;
-import com.alibaba.csp.sentinel.util.StringUtil;
 
 /***
  * The task handles incoming command request in HTTP protocol.
@@ -70,7 +70,7 @@ public class HttpEventTask implements Runnable {
 
             printWriter = new PrintWriter(
                 new OutputStreamWriter(outputStream, Charset.forName(SentinelConfig.charset())));
-
+			// 获取写入流的内容
             String line = in.readLine();
             CommandCenterLog.info("[SimpleHttpCommandCenter] socket income: " + line
                 + "," + socket.getInetAddress());
