@@ -15,36 +15,28 @@
  */
 package com.alibaba.csp.sentinel.slots.statistic;
 
-import java.util.Collection;
-
-import com.alibaba.csp.sentinel.slotchain.ProcessorSlotEntryCallback;
-import com.alibaba.csp.sentinel.slotchain.ProcessorSlotExitCallback;
-import com.alibaba.csp.sentinel.slots.block.flow.PriorityWaitException;
-import com.alibaba.csp.sentinel.util.TimeUtil;
 import com.alibaba.csp.sentinel.Constants;
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.node.ClusterNode;
 import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
+import com.alibaba.csp.sentinel.slotchain.ProcessorSlotEntryCallback;
+import com.alibaba.csp.sentinel.slotchain.ProcessorSlotExitCallback;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.flow.PriorityWaitException;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
+import java.util.Collection;
 
 /**
- * <p>
- * A processor slot that dedicates to real time statistics.
- * When entering this slot, we need to separately count the following
- * information:
- * <ul>
- * <li>{@link ClusterNode}: total statistics of a cluster node of the resource ID.</li>
- * <li>Origin node: statistics of a cluster node from different callers/origins.</li>
- * <li>{@link DefaultNode}: statistics for specific resource name in the specific context.</li>
- * <li>Finally, the sum statistics of all entrances.</li>
- * </ul>
- * </p>
- *
- * @author jialiang.linjl
- * @author Eric Zhao
+ * 致力于实时数据统计的slot
+ * 当进此类型的slot时，我们需要分别计算以下信息
+ * {@link ClusterNode}: resource id的cluster node的全部数据统计
+ * Origin node: 不同的调用下cluster node的全部数据统计
+ * {@link DefaultNode}: 在特定上下文，特定resource name中的数据统计
+ * 所有根节点的数据统计之和
  */
 public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
@@ -52,76 +44,79 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args) throws Throwable {
         try {
-            // Do some checking.
+			// 继续进行责任链的后续Slot的处理
             fireEntry(context, resourceWrapper, node, count, prioritized, args);
-
-            // Request passed, add thread count and pass count.
+			// 后续处理完成之后，回到这里，进行数据统计
             node.increaseThreadNum();
             node.addPassRequest(count);
 
             if (context.getCurEntry().getOriginNode() != null) {
-                // Add count for origin node.
+				// 更新origin node的数据
                 context.getCurEntry().getOriginNode().increaseThreadNum();
                 context.getCurEntry().getOriginNode().addPassRequest(count);
             }
 
             if (resourceWrapper.getType() == EntryType.IN) {
-                // Add count for global inbound entry node for global statistics.
+				// 更新inbound类型请求的全局数据
                 Constants.ENTRY_NODE.increaseThreadNum();
                 Constants.ENTRY_NODE.addPassRequest(count);
             }
 
-            // Handle pass event with registered entry callback handlers.
+			// 处理注册entry回调任务的通过事件
             for (ProcessorSlotEntryCallback<DefaultNode> handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {
                 handler.onPass(context, resourceWrapper, node, count, args);
             }
         } catch (PriorityWaitException ex) {
+			// 如果抛出因为优先级问题导致的等待问题，更新节点的并发请求数据
             node.increaseThreadNum();
             if (context.getCurEntry().getOriginNode() != null) {
-                // Add count for origin node.
+				// 更新origin node的数据
                 context.getCurEntry().getOriginNode().increaseThreadNum();
             }
 
             if (resourceWrapper.getType() == EntryType.IN) {
-                // Add count for global inbound entry node for global statistics.
+				// 更新inbound类型请求的全局数据
                 Constants.ENTRY_NODE.increaseThreadNum();
             }
-            // Handle pass event with registered entry callback handlers.
-            for (ProcessorSlotEntryCallback<DefaultNode> handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {
-                handler.onPass(context, resourceWrapper, node, count, args);
-            }
+			// 处理注册entry回调任务的通过事件
+			for (ProcessorSlotEntryCallback<DefaultNode> handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {
+				handler.onPass(context, resourceWrapper, node, count, args);
+			}
         } catch (BlockException e) {
-            // Blocked, set block exception to current entry.
+			// 阻塞异常
+			// 设置当前异常
             context.getCurEntry().setError(e);
 
-            // Add block count.
+			// 更新阻塞数据统计
             node.increaseBlockQps(count);
             if (context.getCurEntry().getOriginNode() != null) {
                 context.getCurEntry().getOriginNode().increaseBlockQps(count);
             }
 
             if (resourceWrapper.getType() == EntryType.IN) {
-                // Add count for global inbound entry node for global statistics.
+				// 更新inbound类型请求的全局数据
                 Constants.ENTRY_NODE.increaseBlockQps(count);
             }
 
-            // Handle block event with registered entry callback handlers.
+			// 处理注册entry回调任务的通过事件
             for (ProcessorSlotEntryCallback<DefaultNode> handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {
                 handler.onBlocked(e, context, resourceWrapper, node, count, args);
             }
 
             throw e;
         } catch (Throwable e) {
-            // Unexpected error, set error to current entry.
+			// 未知的错误
             context.getCurEntry().setError(e);
 
-            // This should not happen.
+			// 更新异常QPS数量
             node.increaseExceptionQps(count);
+			// 更新origin node的数据
             if (context.getCurEntry().getOriginNode() != null) {
                 context.getCurEntry().getOriginNode().increaseExceptionQps(count);
             }
 
             if (resourceWrapper.getType() == EntryType.IN) {
+				// 更新inbound类型请求的全局数据
                 Constants.ENTRY_NODE.increaseExceptionQps(count);
             }
             throw e;
@@ -130,36 +125,40 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
     @Override
     public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
+		// 获取当前需要处理的节点
         DefaultNode node = (DefaultNode)context.getCurNode();
-
+		// 如果在正向chain中出现了异常，
         if (context.getCurEntry().getError() == null) {
-            // Calculate response time (max RT is TIME_DROP_VALVE).
+			// 计算响应时间没
             long rt = TimeUtil.currentTimeMillis() - context.getCurEntry().getCreateTime();
+			// 如果已经超过抛弃的阈值，将响应时间设为阈值
             if (rt > Constants.TIME_DROP_VALVE) {
                 rt = Constants.TIME_DROP_VALVE;
             }
 
-            // Record response time and success count.
+			// 记录响应时间和成功数量
             node.addRtAndSuccess(rt, count);
             if (context.getCurEntry().getOriginNode() != null) {
                 context.getCurEntry().getOriginNode().addRtAndSuccess(rt, count);
             }
-
+			// entry已经取消占用，减少线程数量
             node.decreaseThreadNum();
 
             if (context.getCurEntry().getOriginNode() != null) {
+				// 更新origin node的数据统计
                 context.getCurEntry().getOriginNode().decreaseThreadNum();
             }
 
             if (resourceWrapper.getType() == EntryType.IN) {
+				// 更新inbound类型请求的全局数据
                 Constants.ENTRY_NODE.addRtAndSuccess(rt, count);
                 Constants.ENTRY_NODE.decreaseThreadNum();
             }
         } else {
-            // Error may happen.
+			// 错误可能会发生
         }
 
-        // Handle exit event with registered exit callback handlers.
+		// 处理注册entry回调任务的退出事件
         Collection<ProcessorSlotExitCallback> exitCallbacks = StatisticSlotCallbackRegistry.getExitCallbacks();
         for (ProcessorSlotExitCallback handler : exitCallbacks) {
             handler.onExit(context, resourceWrapper, count, args);

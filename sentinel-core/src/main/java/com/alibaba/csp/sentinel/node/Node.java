@@ -15,40 +15,32 @@
  */
 package com.alibaba.csp.sentinel.node;
 
-import java.util.Map;
-
 import com.alibaba.csp.sentinel.Entry;
 import com.alibaba.csp.sentinel.node.metric.MetricNode;
 import com.alibaba.csp.sentinel.slots.statistic.metric.DebugSupport;
 
+import java.util.Map;
+
 /**
- * Holds real-time statistics for resources.
- *
- * @author qinan.qn
- * @author leyou
- * @author Eric Zhao
+ * 存储resource实时数据的数据分析节点
  */
 public interface Node extends OccupySupport, DebugSupport {
 
     /**
-     * Get incoming request per minute ({@code pass + block}).
-     *
-     * @return total request count per minute
+	 * 获取每分钟进入的请求数量
+	 * 计算公式：{@code pass + block}
+	 * @return 每分钟总请求数
      */
     long totalRequest();
 
     /**
-     * Get pass count per minute.
-     *
-     * @return total passed request count per minute
+	 * @return 每分钟通过请求数
      * @since 1.5.0
      */
     long totalPass();
 
     /**
-     * Get {@link Entry#exit()} count per minute.
-     *
-     * @return total completed request count per minute
+	 * @return 每分钟资源释放释放数量
      */
     long totalSuccess();
 
@@ -60,30 +52,23 @@ public interface Node extends OccupySupport, DebugSupport {
     long blockRequest();
 
     /**
-     * Get exception count per minute.
-     *
-     * @return total business exception count per minute
+	 * @return 每分钟异常数
      */
     long totalException();
 
     /**
-     * Get pass request per second.
-     *
-     * @return QPS of passed requests
+	 * @return 校验通过的QPS
      */
     double passQps();
 
     /**
-     * Get block request per second.
-     *
-     * @return QPS of blocked requests
+	 * @return 请求阻塞的QPS
      */
     double blockQps();
 
     /**
-     * Get {@link #passQps()} + {@link #blockQps()} request per second.
-     *
-     * @return QPS of passed and blocked requests
+	 * 计算公式：{@link #passQps()} + {@link #blockQps()}
+	 * @return 总QPS
      */
     double totalQps();
 
@@ -95,99 +80,83 @@ public interface Node extends OccupySupport, DebugSupport {
     double successQps();
 
     /**
-     * Get estimated max success QPS till now.
-     *
-     * @return max completed QPS
+	 * @return 估算的最大已完成的QPS
      */
     double maxSuccessQps();
 
     /**
-     * Get exception count per second.
-     *
-     * @return QPS of exception occurs
+	 * @return 发生异常的QPS
      */
     double exceptionQps();
 
     /**
-     * Get average rt per second.
-     *
-     * @return average response time per second
+	 * @return 每秒的平均响应时间
      */
     double avgRt();
 
     /**
-     * Get minimal response time.
-     *
-     * @return recorded minimal response time
+	 * @return 记录的最短响应时间
      */
     double minRt();
 
     /**
-     * Get current active thread count.
-     *
-     * @return current active thread count
+	 * @return 当前活跃线程数
      */
     int curThreadNum();
 
     /**
-     * Get last second block QPS.
+	 * @return 获取上一秒的阻塞QPS
      */
     double previousBlockQps();
 
     /**
-     * Last window QPS.
+	 * @return 获取上移滑动窗口的QPS
      */
     double previousPassQps();
 
     /**
-     * Fetch all valid metric nodes of resources.
-     *
-     * @return valid metric nodes of resources
+	 * @return 获取所有resource合法数据统计节点
      */
     Map<Long, MetricNode> metrics();
 
     /**
-     * Add pass count.
-     *
-     * @param count count to add pass
+	 * 添加通过数量
+	 * @param count 需要添加的通过数量
      */
     void addPassRequest(int count);
 
     /**
-     * Add rt and success count.
-     *
-     * @param rt      response time
-     * @param success success count to add
+	 * 添加响应时间和成功数量
+	 * @param rt      响应时间
+	 * @param success 需要添加的响应成功数量
      */
     void addRtAndSuccess(long rt, int success);
 
     /**
-     * Increase the block count.
-     *
-     * @param count count to add
+	 * 添加阻塞数量
+	 * @param count 需要添加的阻塞数量
      */
     void increaseBlockQps(int count);
 
     /**
-     * Add the biz exception count.
-     *
+	 * 添加出现的业务异常数量
      * @param count count to add
      */
     void increaseExceptionQps(int count);
 
     /**
-     * Increase current thread count.
+	 * 添加当前并发线程数
      */
     void increaseThreadNum();
 
     /**
-     * Decrease current thread count.
+	 * 减少当前并发线程数
      */
     void decreaseThreadNum();
 
     /**
-     * Reset the internal counter. Reset is needed when {@link IntervalProperty#INTERVAL} or
-     * {@link SampleCountProperty#SAMPLE_COUNT} is changed.
+	 * 重置内部计数器
+	 * 在{@link IntervalProperty#INTERVAL}或{@link SampleCountProperty#SAMPLE_COUNT}发生改变时需要进行重置
      */
     void reset();
 }

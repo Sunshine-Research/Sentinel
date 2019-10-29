@@ -15,30 +15,19 @@
  */
 package com.alibaba.csp.sentinel.node;
 
+import com.alibaba.csp.sentinel.context.ContextUtil;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
-import com.alibaba.csp.sentinel.context.ContextUtil;
-import com.alibaba.csp.sentinel.slots.block.BlockException;
-
 /**
- * <p>
- * This class stores summary runtime statistics of the resource, including rt, thread count, qps
- * and so on. Same resource shares the same {@link ClusterNode} globally, no matter in which
- * {@link com.alibaba.csp.sentinel.context.Context}.
- * </p>
- * <p>
- * To distinguish invocation from different origin (declared in
- * {@link ContextUtil#enter(String name, String origin)}),
- * one {@link ClusterNode} holds an {@link #originCountMap}, this map holds {@link StatisticNode}
- * of different origin. Use {@link #getOrCreateOriginNode(String)} to get {@link Node} of the specific
- * origin.<br/>
- * Note that 'origin' usually is Service Consumer's app name.
- * </p>
- *
- * @author qinan.qn
- * @author jialiang.linjl
+ * 此类存储了resource的实时数据统计，包括响应时间，线程数量，QPS等
+ * 相同的resource在不同的上下文中全局共享同一个{@link ClusterNode}，
+ * 对于不同origin的特定调用（声明于{@link ContextUtil#enter(String name, String origin)}），一个{@link ClusterNode}持有一个{@link #originCountMap}，存储了不同origin的{@link StatisticNode}
+ * 使用{@link #getOrCreateOriginNode(String)}来获取特定origin的{@link Node}节点
+ * 需要注意的是origin通常是后端服务的应用名称
  */
 public class ClusterNode extends StatisticNode {
 

@@ -15,40 +15,28 @@
  */
 package com.alibaba.csp.sentinel.slots.nodeselector;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.alibaba.csp.sentinel.context.Context;
-import com.alibaba.csp.sentinel.context.ContextUtil;
 import com.alibaba.csp.sentinel.node.ClusterNode;
 import com.alibaba.csp.sentinel.node.DefaultNode;
-import com.alibaba.csp.sentinel.node.EntranceNode;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * </p>
- * This class will try to build the calling traces via
- * <ol>
- * <li>adding a new {@link DefaultNode} if needed as the last child in the context.
- * The context's last node is the current node or the parent node of the context. </li>
- * <li>setting itself to the context current node.</li>
- * </ol>
- * </p>
- *
- * <p>It works as follow:</p>
- * <pre>
+ * 此类用于尝试构建调用路径
+ * 如果有需要，添加一个新的{@link DefaultNode}到上下文的尾部
+ * 上下文的最后一个节点是当前正在处理的节点，或者是上下文的parent节点
  * ContextUtil.enter("entrance1", "appA");
  * Entry nodeA = SphU.entry("nodeA");
  * if (nodeA != null) {
  *     nodeA.exit();
  * }
  * ContextUtil.exit();
- * </pre>
- *
- * Above code will generate the following invocation structure in memory:
- *
- * <pre>
+ * 创建entrance1的上下文，指定调用发起者为appA
+ * 接着通过SphU申请token
+ * 如果没有抛出BlockException，则证明获取token成功
  *
  *              machine-root
  *                  /
@@ -57,27 +45,8 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
  *               /
  *              /
  *        DefaultNode(nodeA)- - - - - -> ClusterNode(nodeA);
- * </pre>
- *
- * <p>
- * Here the {@link EntranceNode} represents "entrance1" given by
- * {@code ContextUtil.enter("entrance1", "appA")}.
- * </p>
- * <p>
- * Both DefaultNode(nodeA) and ClusterNode(nodeA) holds statistics of "nodeA", which is given
- * by {@code SphU.entry("nodeA")}
- * </p>
- * <p>
- * The {@link ClusterNode} is uniquely identified by the ResourceId; the {@link DefaultNode}
- * is identified by both the resource id and {@link Context}. In other words, one resource
- * id will generate multiple {@link DefaultNode} for each distinct context, but only one
- * {@link ClusterNode}.
- * </p>
- * <p>
- * the following code shows one resource id in two different context:
- * </p>
- *
- * <pre>
+ * 一个资源ID可以有多个不同入口的DefaultNode
+ * 下面的代码会展示同一个resource id在两种不同的上下文中
  *    ContextUtil.enter("entrance1", "appA");
  *    Entry nodeA = SphU.entry("nodeA");
  *    if (nodeA != null) {
@@ -91,11 +60,7 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
  *        nodeA.exit();
  *    }
  *    ContextUtil.exit();
- * </pre>
- *
- * Above code will generate the following invocation structure in memory:
- *
- * <pre>
+ * 上述代码会在内存中生成如下调用结构
  *
  *                  machine-root
  *                  /         \
@@ -106,26 +71,13 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
  *      DefaultNode(nodeA)   DefaultNode(nodeA)
  *             |                    |
  *             +- - - - - - - - - - +- - - - - - -> ClusterNode(nodeA);
- * </pre>
- *
- * <p>
- * As we can see, two {@link DefaultNode} are created for "nodeA" in two context, but only one
- * {@link ClusterNode} is created.
- * </p>
- *
- * <p>
- * We can also check this structure by calling: <br/>
- * {@code curl http://localhost:8719/tree?type=root}
- * </p>
- *
- * @author jialiang.linjl
- * @see EntranceNode
- * @see ContextUtil
+ * 在两个上下文中创建了两个{@link DefaultNode}，但是只会创建一个{@link ClusterNode}
+ * 我们可以使用{@code curl http://localhost:8719/tree?type=root}来查看节点结构
  */
 public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
 
     /**
-     * {@link DefaultNode}s of the same resource in different context.
+	 * 在不同上下文中，相同resource的{@link DefaultNode}集合
      */
     private volatile Map<String, DefaultNode> map = new HashMap<String, DefaultNode>(10);
 
@@ -133,25 +85,18 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
     public void entry(Context context, ResourceWrapper resourceWrapper, Object obj, int count, boolean prioritized, Object... args)
         throws Throwable {
         /*
-         * It's interesting that we use context name rather resource name as the map key.
-         *
-         * Remember that same resource({@link ResourceWrapper#equals(Object)}) will share
-         * the same {@link ProcessorSlotChain} globally, no matter in which context. So if
-         * code goes into {@link #entry(Context, ResourceWrapper, DefaultNode, int, Object...)},
-         * the resource name must be same but context name may not.
-         *
-         * If we use {@link com.alibaba.csp.sentinel.SphU#entry(String resource)} to
-         * enter same resource in different context, using context name as map key can
-         * distinguish the same resource. In this case, multiple {@link DefaultNode}s will be created
-         * of the same resource name, for every distinct context (different context name) each.
-         *
-         * Consider another question. One resource may have multiple {@link DefaultNode},
-         * so what is the fastest way to get total statistics of the same resource?
-         * The answer is all {@link DefaultNode}s with same resource name share one
-         * {@link ClusterNode}. See {@link ClusterBuilderSlot} for detail.
+		 * 我们将使用上下文名称来代替资源ID作为map的key
+		 * 因为同一个resource会全局共享相同的{@link ProcessorSlotChain}，无论在什么上下文中，
+		 * 所以如果代码走进{@link #entry(Context, ResourceWrapper, DefaultNode, int, Object...)}方法时，资源ID必须一样，但是上下文可能不一样
+		 * 如果我们在不同的上下文中使用{@link com.alibaba.csp.sentinel.SphU#entry(String resource)}来申请相同资源ID的token
+		 * 使用上下文名称来作为映射的key可以区分相同的resource id，对于每个不同的上下文（不同的上下文名称）
+		 * 思考另一个问题，一个resource可能会有多个{@link DefaultNode}，所以那种方式是最快获取相同resource的数据统计汇总结果呢？
+		 * 所有的具有相同resource的{@link DefaultNode}会共享同一个{@link ClusterNode}，所以{@link ClusterBuilderSlot}会告诉你的答案
          */
+		// 获取当前上下文的DefaultNode
         DefaultNode node = map.get(context.getName());
         if (node == null) {
+			// 如果不存在当前上下文的数据统计节点，此时就需要为当前上下文创建一个数据统计节点
             synchronized (this) {
                 node = map.get(context.getName());
                 if (node == null) {
@@ -161,11 +106,11 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
                     cacheMap.put(context.getName(), node);
                     map = cacheMap;
                 }
-                // Build invocation tree
+				// 构建调用树
                 ((DefaultNode)context.getLastNode()).addChild(node);
             }
         }
-
+		// 设置处理节点为当前节点
         context.setCurNode(node);
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }

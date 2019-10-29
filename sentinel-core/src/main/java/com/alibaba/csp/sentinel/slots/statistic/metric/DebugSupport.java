@@ -16,13 +16,12 @@
 package com.alibaba.csp.sentinel.slots.statistic.metric;
 
 /**
- * @author Eric Zhao
- * @since 1.5.0
+ * debug支持
  */
 public interface DebugSupport {
 
     /**
-     * For debug;
+	 * 用于debug
      */
     void debug();
 }

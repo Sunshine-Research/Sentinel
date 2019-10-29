@@ -15,105 +15,79 @@
  */
 package com.alibaba.csp.sentinel.node;
 
+import com.alibaba.csp.sentinel.node.metric.MetricNode;
+import com.alibaba.csp.sentinel.slots.statistic.metric.ArrayMetric;
+import com.alibaba.csp.sentinel.slots.statistic.metric.Metric;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.alibaba.csp.sentinel.util.TimeUtil;
-import com.alibaba.csp.sentinel.node.metric.MetricNode;
-import com.alibaba.csp.sentinel.slots.statistic.metric.ArrayMetric;
-import com.alibaba.csp.sentinel.slots.statistic.metric.Metric;
-
 /**
- * <p>The statistic node keep three kinds of real-time statistics metrics:</p>
- * <ol>
- * <li>metrics in second level ({@code rollingCounterInSecond})</li>
- * <li>metrics in minute level ({@code rollingCounterInMinute})</li>
- * <li>thread count</li>
- * </ol>
+ * 数据分析节点保存了三种实时数据统计的度量标准
+ * 秒级度量标准({@code rollingCounterInSecond})
+ * 分钟度量标准({@code rollingCounterInMinute})
+ * 线程数量
  *
- * <p>
- * Sentinel use sliding window to record and count the resource statistics in real-time.
- * The sliding window infrastructure behind the {@link ArrayMetric} is {@code LeapArray}.
- * </p>
- *
- * <p>
- * case 1: When the first request comes in, Sentinel will create a new window bucket of
- * a specified time-span to store running statics, such as total response time(rt),
- * incoming request(QPS), block request(bq), etc. And the time-span is defined by sample count.
- * </p>
- * <pre>
+ * Sentinel使用滑动窗口的方式记录和计算resource的实时数据分析
+ * 滑动窗口的基础结构在{@link ArrayMetric}之后，是{@code LeapArray}
+ * case 1: 当第一个请求进入时，Sentinel会创建一个指定时间间隔的新窗口来存储运行时数据，比如总的响应时间，QPS，阻塞请求数等
  * 	0      100ms
  *  +-------+--→ Sliding Windows
  * 	    ^
  * 	    |
  * 	  request
- * </pre>
- * <p>
- * Sentinel use the statics of the valid buckets to decide whether this request can be passed.
- * For example, if a rule defines that only 100 requests can be passed,
- * it will sum all qps in valid buckets, and compare it to the threshold defined in rule.
- * </p>
+ * Sentinel使用使用桶内的静态值来决定请求是否可以通过，比如，如果一个规则声明只有100个请求可以通过，它会统计桶内的所有QPS之后，并和规则中声明的阈值进行比较
  *
- * <p>case 2: continuous requests</p>
- * <pre>
+ * case 2: 持续请求
  *  0    100ms    200ms    300ms
  *  +-------+-------+-------+-----→ Sliding Windows
  *                      ^
  *                      |
  *                   request
- * </pre>
  *
- * <p>case 3: requests keeps coming, and previous buckets become invalid</p>
- * <pre>
+ * case 3: 请求持续进入，但是前一个桶已经不可用了
  *  0    100ms    200ms	  800ms	   900ms  1000ms    1300ms
  *  +-------+-------+ ...... +-------+-------+ ...... +-------+-----→ Sliding Windows
  *                                                      ^
  *                                                      |
  *                                                    request
- * </pre>
- *
- * <p>The sliding window should become:</p>
- * <pre>
+ * 滑动窗口需要编程
  * 300ms     800ms  900ms  1000ms  1300ms
  *  + ...... +-------+ ...... +-------+-----→ Sliding Windows
  *                                                      ^
  *                                                      |
  *                                                    request
- * </pre>
- *
- * @author qinan.qn
- * @author jialiang.linjl
  */
 public class StatisticNode implements Node {
 
     /**
-     * Holds statistics of the recent {@code INTERVAL} seconds. The {@code INTERVAL} is divided into time spans
-     * by given {@code sampleCount}.
+	 * 每秒的滑动窗口
+	 * 滑动窗口的时间间隔是由总时间间隔，和自定义的滑动窗口数量决定的
      */
     private transient volatile Metric rollingCounterInSecond = new ArrayMetric(SampleCountProperty.SAMPLE_COUNT,
         IntervalProperty.INTERVAL);
 
     /**
-     * Holds statistics of the recent 60 seconds. The windowLengthInMs is deliberately set to 1000 milliseconds,
-     * meaning each bucket per second, in this way we can get accurate statistics of each second.
+	 * 每分钟的滑动窗口，滑动窗口时间间隔为1s
      */
     private transient Metric rollingCounterInMinute = new ArrayMetric(60, 60 * 1000, false);
 
     /**
-     * The counter for thread count.
+	 * 线程数量计数器
      */
     private AtomicInteger curThreadNum = new AtomicInteger(0);
 
     /**
-     * The last timestamp when metrics were fetched.
+	 * 上一次获取度量标准的时间戳
      */
     private long lastFetchTime = -1;
 
     @Override
     public Map<Long, MetricNode> metrics() {
-        // The fetch operation is thread-safe under a single-thread scheduler pool.
+		// 由于是在一个single-thread调度池里运行，拉取操作是线程安全的
         long currentTime = TimeUtil.currentTimeMillis();
         currentTime = currentTime - currentTime % 1000;
         Map<Long, MetricNode> metrics = new ConcurrentHashMap<>();

@@ -15,43 +15,33 @@
  */
 package com.alibaba.csp.sentinel.node;
 
+import com.alibaba.csp.sentinel.SphO;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
+
 import java.util.HashSet;
 import java.util.Set;
 
-import com.alibaba.csp.sentinel.log.RecordLog;
-import com.alibaba.csp.sentinel.SphO;
-import com.alibaba.csp.sentinel.SphU;
-import com.alibaba.csp.sentinel.context.Context;
-import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
-import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
-
 /**
- * <p>
- * A {@link Node} used to hold statistics for specific resource name in the specific context.
- * Each distinct resource in each distinct {@link Context} will corresponding to a {@link DefaultNode}.
- * </p>
- * <p>
- * This class may have a list of sub {@link DefaultNode}s. Child nodes will be created when
- * calling {@link SphU}#entry() or {@link SphO}@entry() multiple times in the same {@link Context}.
- * </p>
- *
- * @author qinan.qn
- * @see NodeSelectorSlot
+ * 一个存储特定resource name在特定context中数据统计的节点，每个context中每个不同的resource都有不同的DefaultNode
+ * 此类可能会有子{@link DefaultNode}，子节点会在同一个上下文中多次调用{@link SphU}#entry() or {@link SphO}@entry()时创建
  */
 public class DefaultNode extends StatisticNode {
 
     /**
      * The resource associated with the node.
+	 * 关联到Node的resource
      */
     private ResourceWrapper id;
 
     /**
-     * The list of all child nodes.
+	 * 子节点集合
      */
     private volatile Set<Node> childList = new HashSet<>();
 
     /**
-     * Associated cluster node.
+	 * 关联的Cluster Node
      */
     private ClusterNode clusterNode;
 
@@ -73,15 +63,15 @@ public class DefaultNode extends StatisticNode {
     }
 
     /**
-     * Add child node to current node.
-     *
-     * @param node valid child node
+	 * 想当前节点添加子节点
+	 * @param node 给定的parent node
      */
     public void addChild(Node node) {
         if (node == null) {
             RecordLog.warn("Trying to add null child to node <{0}>, ignored", id.getName());
             return;
         }
+		// 当前节点不在子节点列表时，同步添加子节点
         if (!childList.contains(node)) {
             synchronized (this) {
                 if (!childList.contains(node)) {
@@ -96,7 +86,7 @@ public class DefaultNode extends StatisticNode {
     }
 
     /**
-     * Reset the child node list.
+	 * 重置所有子节点
      */
     public void removeChildList() {
         this.childList = new HashSet<>();

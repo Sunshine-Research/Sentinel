@@ -15,9 +15,6 @@
  */
 package com.alibaba.csp.sentinel.slots.clusterbuilder;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.context.ContextUtil;
@@ -31,40 +28,24 @@ import com.alibaba.csp.sentinel.slotchain.ProcessorSlotChain;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slotchain.StringResourceWrapper;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * <p>
- * This slot maintains resource running statistics (response time, qps, thread
- * count, exception), and a list of callers as well which is marked by
- * {@link ContextUtil#enter(String origin)}
- * </p>
- * <p>
- * One resource has only one cluster node, while one resource can have multiple
- * default nodes.
- * </p>
- *
- * @author jialiang.linjl
+ * 此slot掌控了resource的运行时数据（响应时间，QPS，线程数量，异常），以及以{@link ContextUtil#enter(String origin)}标记的调用列表
+ * 一个resource仅有一个cluster node，但是可以有多个default node
  */
 public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
-    /**
-     * <p>
-     * Remember that same resource({@link ResourceWrapper#equals(Object)}) will share
-     * the same {@link ProcessorSlotChain} globally, no matter in witch context. So if
-     * code goes into {@link #entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)},
-     * the resource name must be same but context name may not.
-     * </p>
-     * <p>
-     * To get total statistics of the same resource in different context, same resource
-     * shares the same {@link ClusterNode} globally. All {@link ClusterNode}s are cached
-     * in this map.
-     * </p>
-     * <p>
-     * The longer the application runs, the more stable this mapping will
-     * become. so we don't concurrent map but a lock. as this lock only happens
-     * at the very beginning while concurrent map will hold the lock all the time.
-     * </p>
-     */
+	/**
+	 * 需要记住相同的resource会全局共享 {@link ProcessorSlotChain}，所以无论在哪个上下文中，如果代码已经进入
+	 * {@link #entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)}，则{@link #entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)},
+	 * resource name必须是相同的，但是上下问的名称是可以随意的
+	 * 应用运行的时间越长，当前的映射集合就会变的越稳定，所以我们没有用并发的映射集合，而是通过lock来保证线程安全
+	 * lock上锁仅会发生于最开始的时候，并发映射将始终保持该锁定
+	 */
     private static volatile Map<ResourceWrapper, ClusterNode> clusterNodeMap = new HashMap<>();
+
 
     private static final Object lock = new Object();
 
@@ -76,8 +57,8 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
         throws Throwable {
         if (clusterNode == null) {
             synchronized (lock) {
+				// 使用同步的方式创建cluster node
                 if (clusterNode == null) {
-                    // Create the cluster node.
                     clusterNode = new ClusterNode();
                     HashMap<ResourceWrapper, ClusterNode> newMap = new HashMap<>(Math.max(clusterNodeMap.size(), 16));
                     newMap.putAll(clusterNodeMap);

@@ -18,31 +18,38 @@ package com.alibaba.csp.sentinel.slotchain;
 import com.alibaba.csp.sentinel.context.Context;
 
 /**
- * @author qinan.qn
- * @author jialiang.linjl
+ * 默认的ProcessorSlot调用链
  */
 public class DefaultProcessorSlotChain extends ProcessorSlotChain {
 
-    AbstractLinkedProcessorSlot<?> first = new AbstractLinkedProcessorSlot<Object>() {
+	/**
+	 * 构建head节点
+	 */
+	AbstractLinkedProcessorSlot<?> first = new AbstractLinkedProcessorSlot<Object>() {
 
-        @Override
-        public void entry(Context context, ResourceWrapper resourceWrapper, Object t, int count, boolean prioritized, Object... args)
-            throws Throwable {
-            super.fireEntry(context, resourceWrapper, t, count, prioritized, args);
-        }
+		@Override
+		public void entry(Context context, ResourceWrapper resourceWrapper, Object t, int count, boolean prioritized, Object... args)
+				throws Throwable {
+			super.fireEntry(context, resourceWrapper, t, count, prioritized, args);
+		}
 
-        @Override
-        public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
-            super.fireExit(context, resourceWrapper, count, args);
-        }
+		@Override
+		public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
+			super.fireExit(context, resourceWrapper, count, args);
+		}
 
-    };
-    AbstractLinkedProcessorSlot<?> end = first;
+	};
+	/**
+	 * 初始化时，tail节点也是head节点
+	 */
+	AbstractLinkedProcessorSlot<?> end = first;
 
     @Override
     public void addFirst(AbstractLinkedProcessorSlot<?> protocolProcessor) {
+		// 添加到first节点之后
         protocolProcessor.setNext(first.getNext());
         first.setNext(protocolProcessor);
+		// 如果当前责任链只有一个first节点，那么添加的protocolProcessor将会成为end节点
         if (end == first) {
             end = protocolProcessor;
         }
@@ -50,14 +57,15 @@ public class DefaultProcessorSlotChain extends ProcessorSlotChain {
 
     @Override
     public void addLast(AbstractLinkedProcessorSlot<?> protocolProcessor) {
+		// end节点的下一个节点设为给定节点，同时将end节点设置为给定节点
+		// 这么写是避免链断掉
         end.setNext(protocolProcessor);
         end = protocolProcessor;
     }
 
-    /**
-     * Same as {@link #addLast(AbstractLinkedProcessorSlot)}.
-     *
-     * @param next processor to be added.
+	/**
+	 * 和{@link #addLast(AbstractLinkedProcessorSlot)}方法一样
+	 * @param next 需要添加的processor
      */
     @Override
     public void setNext(AbstractLinkedProcessorSlot<?> next) {

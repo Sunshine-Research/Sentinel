@@ -15,9 +15,6 @@
  */
 package com.alibaba.csp.sentinel.cluster.client;
 
-import java.util.Collection;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.alibaba.csp.sentinel.cluster.ClusterConstants;
 import com.alibaba.csp.sentinel.cluster.ClusterErrorMessages;
 import com.alibaba.csp.sentinel.cluster.ClusterTransportClient;
@@ -35,6 +32,9 @@ import com.alibaba.csp.sentinel.cluster.response.ClusterResponse;
 import com.alibaba.csp.sentinel.cluster.response.data.FlowTokenResponseData;
 import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.util.StringUtil;
+
+import java.util.Collection;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Default implementation of {@link ClusterTokenClient}.
@@ -148,14 +148,18 @@ public class DefaultClusterTokenClient implements ClusterTokenClient {
 
     @Override
     public TokenResult requestToken(Long flowId, int acquireCount, boolean prioritized) {
+		// 请求参数校验
         if (notValidRequest(flowId, acquireCount)) {
             return badRequest();
         }
+		// 构建请求数据和请求
         FlowRequestData data = new FlowRequestData().setCount(acquireCount)
             .setFlowId(flowId).setPriority(prioritized);
         ClusterRequest<FlowRequestData> request = new ClusterRequest<>(ClusterConstants.MSG_TYPE_FLOW, data);
         try {
+			// 发送获取令牌请求，获取结果
             TokenResult result = sendTokenRequest(request);
+			// 记录请求信息
             logForResult(result);
             return result;
         } catch (Exception ex) {
@@ -194,21 +198,28 @@ public class DefaultClusterTokenClient implements ClusterTokenClient {
         }
     }
 
-    private TokenResult sendTokenRequest(ClusterRequest request) throws Exception {
-        if (transportClient == null) {
-            RecordLog.warn(
-                "[DefaultClusterTokenClient] Client not created, please check your config for cluster client");
-            return clientFail();
-        }
-        ClusterResponse response = transportClient.sendRequest(request);
-        TokenResult result = new TokenResult(response.getStatus());
-        if (response.getData() != null) {
-            FlowTokenResponseData responseData = (FlowTokenResponseData)response.getData();
-            result.setRemaining(responseData.getRemainingCount())
-                .setWaitInMs(responseData.getWaitInMs());
-        }
-        return result;
-    }
+	/**
+	 * 发送获取token请求，默认使用Netty传输
+	 * @param request 集群请求
+	 * @return token请求结果
+	 * @throws Exception IO异常
+	 */
+	private TokenResult sendTokenRequest(ClusterRequest request) throws Exception {
+		if (transportClient == null) {
+			RecordLog.warn(
+					"[DefaultClusterTokenClient] Client not created, please check your config for cluster client");
+			return clientFail();
+		}
+		ClusterResponse response = transportClient.sendRequest(request);
+		TokenResult result = new TokenResult(response.getStatus());
+		if (response.getData() != null) {
+			// 构建响应
+			FlowTokenResponseData responseData = (FlowTokenResponseData)response.getData();
+			result.setRemaining(responseData.getRemainingCount())
+					.setWaitInMs(responseData.getWaitInMs());
+		}
+		return result;
+	}
 
     private boolean notValidRequest(Long id, int count) {
         return id == null || id <= 0 || count <= 0;

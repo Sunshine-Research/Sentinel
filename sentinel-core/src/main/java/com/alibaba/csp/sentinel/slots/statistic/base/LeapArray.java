@@ -15,47 +15,44 @@
  */
 package com.alibaba.csp.sentinel.slots.statistic.base;
 
+import com.alibaba.csp.sentinel.util.AssertUtil;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.ReentrantLock;
 
-import com.alibaba.csp.sentinel.util.AssertUtil;
-import com.alibaba.csp.sentinel.util.TimeUtil;
-
 /**
- * <p>
- * Basic data structure for statistic metrics in Sentinel.
- * </p>
- * <p>
- * Leap array use sliding window algorithm to count data. Each bucket cover {@code windowLengthInMs} time span,
- * and the total time span is {@link #intervalInMs}, so the total bucket amount is:
+ * Sentinel数据统计度量标准基础数据结构
+ * 环形数组使用滑动窗口算法来计算数据，每个bucket覆盖了{@code windowLengthInMs}时间间隔
+ * 总时间间隔是{@link #intervalInMs}，所以所有的bucket数量是：
  * {@code sampleCount = intervalInMs / windowLengthInMs}.
- * </p>
- *
- * @param <T> type of statistic data
- * @author jialiang.linjl
- * @author Eric Zhao
- * @author Carpenter Lee
  */
 public abstract class LeapArray<T> {
-
+	/**
+	 * 仅用于当前bucket失效
+	 */
+	private final ReentrantLock updateLock = new ReentrantLock();
+	/**
+	 * 滑动窗口的时间间隔
+	 */
     protected int windowLengthInMs;
+	/**
+	 * 滑动窗口的数量
+	 */
     protected int sampleCount;
-    protected int intervalInMs;
 
     protected final AtomicReferenceArray<WindowWrap<T>> array;
+	/**
+	 * 统计的时间间隔
+	 */
+	protected int intervalInMs;
 
-    /**
-     * The conditional (predicate) update lock is used only when current bucket is deprecated.
-     */
-    private final ReentrantLock updateLock = new ReentrantLock();
-
-    /**
-     * The total bucket count is: {@code sampleCount = intervalInMs / windowLengthInMs}.
-     *
-     * @param sampleCount  bucket count of the sliding window
-     * @param intervalInMs the total time interval of this {@link LeapArray} in milliseconds
+	/**
+	 * 根据滑动窗口数量和统计时间间隔计算滑动窗口的时间
+	 * @param sampleCount  滑动窗口的数量
+	 * @param intervalInMs 统计时间间隔，单位ms
      */
     public LeapArray(int sampleCount, int intervalInMs) {
         AssertUtil.isTrue(sampleCount > 0, "bucket count is invalid: " + sampleCount);
@@ -67,22 +64,18 @@ public abstract class LeapArray<T> {
         this.sampleCount = sampleCount;
 
         this.array = new AtomicReferenceArray<>(sampleCount);
-    }
+	}
 
-    /**
-     * Get the bucket at current timestamp.
-     *
-     * @return the bucket at current timestamp
+	/**
+	 * @return 获取当前的滑动窗口
      */
     public WindowWrap<T> currentWindow() {
         return currentWindow(TimeUtil.currentTimeMillis());
-    }
+	}
 
-    /**
-     * Create a new statistic value for bucket.
-     *
-     * @param timeMillis current time in milliseconds
-     * @return the new empty bucket
+	/**
+	 * @param timeMillis 当前时间戳
+	 * @return 一个新的用于数据统计的滑动窗口
      */
     public abstract T newEmptyBucket(long timeMillis);
 
@@ -95,37 +88,44 @@ public abstract class LeapArray<T> {
      */
     protected abstract WindowWrap<T> resetWindowTo(WindowWrap<T> windowWrap, long startTime);
 
+	/**
+	 * 计算时间戳对应的滑动窗口索引
+	 * @param timeMillis 给定时间戳
+	 * @return 给定时间所在的滑动窗口
+	 */
     private int calculateTimeIdx(/*@Valid*/ long timeMillis) {
         long timeId = timeMillis / windowLengthInMs;
-        // Calculate current index so we can map the timestamp to the leap array.
         return (int)(timeId % array.length());
-    }
+	}
 
+	/**
+	 * 计算滑动窗口的起始时间
+	 * @param timeMillis 给定时间戳
+	 * @return 滑动窗口的起始时间
+	 */
     protected long calculateWindowStart(/*@Valid*/ long timeMillis) {
         return timeMillis - timeMillis % windowLengthInMs;
-    }
+	}
 
-    /**
-     * Get bucket item at provided timestamp.
-     *
-     * @param timeMillis a valid timestamp in milliseconds
-     * @return current bucket item at provided timestamp if the time is valid; null if time is invalid
+	/**
+	 * 根据提供的时间戳获取滑动窗口
+	 * @param timeMillis 合法的时间戳
+	 * @return 根据提供的时间戳获取滑动窗口，如果时间不合法，返回null
      */
     public WindowWrap<T> currentWindow(long timeMillis) {
         if (timeMillis < 0) {
             return null;
-        }
-
+		}
+		// 计算时间索引
         int idx = calculateTimeIdx(timeMillis);
-        // Calculate current bucket start time.
+		// 计算滑动窗口的起始时间
         long windowStart = calculateWindowStart(timeMillis);
 
-        /*
-         * Get bucket item at given time from the array.
-         *
-         * (1) Bucket is absent, then just create a new bucket and CAS update to circular array.
-         * (2) Bucket is up-to-date, then just return the bucket.
-         * (3) Bucket is deprecated, then reset current bucket and clean all deprecated buckets.
+		/*
+		 * 从唤醒数组中获取滑动窗口对象
+		 * 1. 如果没有此滑动窗口，创建一个新的bucket
+		 * 2. 如果bucket是最新的，直接返回此bucket
+		 * 3. 如果bucket已经失效，重置当前的bucket并清除所有失效的bucket
          */
         while (true) {
             WindowWrap<T> old = array.get(idx);
@@ -136,34 +136,31 @@ public abstract class LeapArray<T> {
                  * 200     400     600     800     1000    1200  timestamp
                  *                             ^
                  *                          time=888
-                 *            bucket is empty, so create new and update
-                 *
-                 * If the old bucket is absent, then we create a new bucket at {@code windowStart},
-                 * then try to update circular array via a CAS operation. Only one thread can
-                 * succeed to update, while other threads yield its time slice.
+				 * 如果此处没有滑动窗口，需要在窗口起始位置创建一个新的窗口，并且通过CAS进行设置
+				 * 进有一个线程可以成功更新
                  */
                 WindowWrap<T> window = new WindowWrap<T>(windowLengthInMs, windowStart, newEmptyBucket(timeMillis));
                 if (array.compareAndSet(idx, null, window)) {
-                    // Successfully updated, return the created bucket.
+					// 返回成功创建的窗口
                     return window;
-                } else {
-                    // Contention failed, the thread will yield its time slice to wait for bucket available.
+				} else {
+					// 竞争失败，线程会yield()直到窗口可用
                     Thread.yield();
                 }
             } else if (windowStart == old.windowStart()) {
+				// 如果窗口启动时间没有发生变化
                 /*
                  *     B0       B1      B2     B3      B4
                  * ||_______|_______|_______|_______|_______||___
                  * 200     400     600     800     1000    1200  timestamp
                  *                             ^
                  *                          time=888
-                 *            startTime of Bucket 3: 800, so it's up-to-date
-                 *
-                 * If current {@code windowStart} is equal to the start timestamp of old bucket,
-                 * that means the time is within the bucket, so directly return the bucket.
-                 */
+				 * B3窗口的起始时间是800，所以此窗口是最新的
+				 */
+				// 直接返回此窗口
                 return old;
             } else if (windowStart > old.windowStart()) {
+				// 如果重新计算的窗口起始时间和已有的窗口起始时间是不一样的
                 /*
                  *   (old)
                  *             B0       B1      B2    NULL      B4
@@ -177,7 +174,7 @@ public abstract class LeapArray<T> {
                  * the bucket is deprecated. We have to reset the bucket to current {@code windowStart}.
                  * Note that the reset and clean-up operations are hard to be atomic,
                  * so we need a update lock to guarantee the correctness of bucket update.
-                 *
+				 * 如果
                  * The update lock is conditional (tiny scope) and will take effect only when
                  * bucket is deprecated, so in most cases it won't lead to performance loss.
                  */
@@ -188,77 +185,76 @@ public abstract class LeapArray<T> {
                     } finally {
                         updateLock.unlock();
                     }
-                } else {
-                    // Contention failed, the thread will yield its time slice to wait for bucket available.
+				} else {
+					// 竞争失败，线程会yield()直到窗口可用
                     Thread.yield();
                 }
             } else if (windowStart < old.windowStart()) {
-                // Should not go through here, as the provided time is already behind.
+				// 如果重新计算的时间小于窗口的起始时间，需要重新创建一个窗口
                 return new WindowWrap<T>(windowLengthInMs, windowStart, newEmptyBucket(timeMillis));
             }
         }
-    }
+	}
 
-    /**
-     * Get the previous bucket item before provided timestamp.
-     *
-     * @param timeMillis a valid timestamp in milliseconds
-     * @return the previous bucket item before provided timestamp
+	/**
+	 * 获取给定的时间戳的上一个窗口
+	 * @param timeMillis 合法时间戳
+	 * @return 给定的时间戳的上一个窗口
      */
     public WindowWrap<T> getPreviousWindow(long timeMillis) {
         if (timeMillis < 0) {
             return null;
-        }
+		}
+		// 计算给定时间戳的窗口位置
         long timeId = (timeMillis - windowLengthInMs) / windowLengthInMs;
         int idx = (int)(timeId % array.length());
         timeMillis = timeMillis - windowLengthInMs;
+		// 获取计算出来的窗口
         WindowWrap<T> wrap = array.get(idx);
-
+		// 校验窗口的状态
         if (wrap == null || isWindowDeprecated(wrap)) {
             return null;
-        }
-
+		}
+		// 如果当前窗口的起始位置+窗口间隔小于给定时间戳-窗口间隔，则没有给定时间戳的前一个窗口
         if (wrap.windowStart() + windowLengthInMs < (timeMillis)) {
             return null;
-        }
-
+		}
+		// 返回给定时间戳的前一个窗口
         return wrap;
-    }
+	}
 
-    /**
-     * Get the previous bucket item for current timestamp.
-     *
-     * @return the previous bucket item for current timestamp
+	/**
+	 * @return 获取当前时间戳的上一个窗口
      */
     public WindowWrap<T> getPreviousWindow() {
         return getPreviousWindow(TimeUtil.currentTimeMillis());
-    }
+	}
 
-    /**
-     * Get statistic value from bucket for provided timestamp.
-     *
-     * @param timeMillis a valid timestamp in milliseconds
-     * @return the statistic value if bucket for provided timestamp is up-to-date; otherwise null
+	/**
+	 * 获取给定时间戳的滑动窗口的数据统计值
+	 * @param timeMillis 合法时间戳
+	 * @return 滑动窗口的数据统计值
      */
     public T getWindowValue(long timeMillis) {
         if (timeMillis < 0) {
             return null;
-        }
+		}
+		// 计算时间戳对应的滑动窗口索引
         int idx = calculateTimeIdx(timeMillis);
-
+		// 获取滑动窗口
         WindowWrap<T> bucket = array.get(idx);
-
+		// 校验滑动窗口状态
         if (bucket == null || !bucket.isTimeInWindow(timeMillis)) {
             return null;
-        }
-
+		}
+		// 返回滑动窗口储存的值
         return bucket.value();
     }
 
     /**
      * Check if a bucket is deprecated, which means that the bucket
      * has been behind for at least an entire window time span.
-     *
+	 * 检查滑动窗口状态是否失效
      * @param windowWrap a non-null bucket
      * @return true if the bucket is deprecated; otherwise false
      */

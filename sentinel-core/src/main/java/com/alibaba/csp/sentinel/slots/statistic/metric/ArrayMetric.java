@@ -15,16 +15,16 @@
  */
 package com.alibaba.csp.sentinel.slots.statistic.metric;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.alibaba.csp.sentinel.Constants;
 import com.alibaba.csp.sentinel.node.metric.MetricNode;
 import com.alibaba.csp.sentinel.slots.statistic.MetricEvent;
 import com.alibaba.csp.sentinel.slots.statistic.base.LeapArray;
-import com.alibaba.csp.sentinel.slots.statistic.data.MetricBucket;
 import com.alibaba.csp.sentinel.slots.statistic.base.WindowWrap;
+import com.alibaba.csp.sentinel.slots.statistic.data.MetricBucket;
 import com.alibaba.csp.sentinel.slots.statistic.metric.occupy.OccupiableBucketLeapArray;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The basic metric class in Sentinel using a {@link BucketLeapArray} internal.
@@ -34,7 +34,10 @@ import com.alibaba.csp.sentinel.slots.statistic.metric.occupy.OccupiableBucketLe
  */
 public class ArrayMetric implements Metric {
 
-    private final LeapArray<MetricBucket> data;
+	/**
+	 * 环形数组
+	 */
+	private final LeapArray<MetricBucket> data;
 
     public ArrayMetric(int sampleCount, int intervalInMs) {
         this.data = new OccupiableBucketLeapArray(sampleCount, intervalInMs);
