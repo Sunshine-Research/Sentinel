@@ -15,23 +15,21 @@
  */
 package com.alibaba.csp.sentinel.slots.block.flow.param;
 
+import com.alibaba.csp.sentinel.context.Context;
+import com.alibaba.csp.sentinel.node.DefaultNode;
+import com.alibaba.csp.sentinel.slots.block.AbstractRule;
+import com.alibaba.csp.sentinel.slots.block.RuleConstant;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import com.alibaba.csp.sentinel.context.Context;
-import com.alibaba.csp.sentinel.node.DefaultNode;
-import com.alibaba.csp.sentinel.slots.block.AbstractRule;
-import com.alibaba.csp.sentinel.slots.block.RuleConstant;
-
 /**
- * Rules for "hot-spot" frequent parameter flow control.
- *
- * @author jialiang.linjl
- * @author Eric Zhao
- * @since 0.2.0
+ * 热点参数限流
+ * 热点是经常访问的数据，很多时候希望统计某个热点数据中访问频次最高的TopK数据，并对其访问进行控制
+ * Sentinel使用LRU策略来统计最近最常访问的热点参数，结合令牌桶算法来进行参数级别的流量控制
  */
 public class ParamFlowRule extends AbstractRule {
 
@@ -42,45 +40,61 @@ public class ParamFlowRule extends AbstractRule {
     }
 
     /**
-     * The threshold type of flow control (0: thread count, 1: QPS).
+	 * 流控阈值类型
+	 * 0：并发线程数量
+	 * 1：QPS
+	 * 默认QPS模式
      */
     private int grade = RuleConstant.FLOW_GRADE_QPS;
 
     /**
-     * Parameter index.
+	 * 参数索引，对应args中的索引位置
      */
     private Integer paramIdx;
 
     /**
-     * The threshold count.
+	 * 阈值
      */
     private double count;
 
     /**
-     * Traffic shaping behavior (since 1.6.0).
+	 * 流量整形策略
+	 * @since 1.6.0
      */
     private int controlBehavior = RuleConstant.CONTROL_BEHAVIOR_DEFAULT;
-
+	/**
+	 * 流控后，最大等待时间
+	 * 仅在允许排队模式时生效
+	 */
     private int maxQueueingTimeMs = 0;
-    private int burstCount = 0;
-    private long durationInSec = 1;
+	/**
+	 * 缓存的请求数
+	 */
+	private int burstCount = 0;
+	/**
+	 * 统计窗口的时间长度
+	 * @since 1.6.0
+	 */
+	private long durationInSec = 1;
 
-    /**
-     * Original exclusion items of parameters.
+	/**
+	 * 参数例外项
+	 * 可以针对指定的参数值设置限流阈值，不受前面count阈值的限制吗
+	 * 仅支持基本类型和字符串类型
      */
     private List<ParamFlowItem> paramFlowItemList = new ArrayList<ParamFlowItem>();
 
-    /**
-     * Parsed exclusion items of parameters. Only for internal use.
+	/**
+	 * 解析需要排除的参数，仅用于内部使用
      */
     private Map<Object, Integer> hotItems = new HashMap<Object, Integer>();
 
-    /**
-     * Indicating whether the rule is for cluster mode.
+	/**
+	 * 是否开启集群参数流控规则
      */
     private boolean clusterMode = false;
-    /**
-     * Cluster mode specific config for parameter flow rule.
+	/**
+	 * 集群流控规则的相关配置
      */
     private ParamFlowClusterConfig clusterConfig;
 
@@ -111,7 +125,8 @@ public class ParamFlowRule extends AbstractRule {
         return this;
     }
 
-    public long getDurationInSec() {
+
+	public long getDurationInSec() {
         return durationInSec;
     }
 

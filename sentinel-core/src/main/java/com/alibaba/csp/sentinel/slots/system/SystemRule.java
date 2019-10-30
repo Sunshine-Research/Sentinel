@@ -55,83 +55,91 @@ public class SystemRule extends AbstractRule {
 	 */
 	private long maxThread = -1;
 
-    public double getQps() {
-        return qps;
-    }
+	/**
+	 * 获取设置的QPS阈值
+	 * @return 设置的QPS阈值
+	 */
+	public double getQps() {
+		return qps;
+	}
 
-    /**
-     * Set max total QPS. In a high concurrency condition, real passed QPS may be greater than max QPS set.
-     * The real passed QPS will nearly satisfy the following formula:<br/>
-     *
-     * <pre>real passed QPS = QPS set + concurrent thread number</pre>
-     *
-     * @param qps max total QOS, values <= 0 are special for clearing the threshold.
+	/**
+	 * 设置最大的总QPS
+	 * 在高并发条件下，真是通过的QPS可能会高于最大QPS的设置
+	 * 真实通过的QPS近乎于满足以下公式
+	 * 真是通过QPS=设置的QPS值+当前线程的并发数
+	 * @param qps 最大的总QPS，如果≤0，用于清除阈值
      */
     public void setQps(double qps) {
         this.qps = qps;
-    }
+	}
 
-    public long getMaxThread() {
-        return maxThread;
-    }
+	/**
+	 * 获取设置的最大线程数
+	 * @return 设置的最大线程数
+	 */
+	public long getMaxThread() {
+		return maxThread;
+	}
 
-    /**
-     * Set max PARALLEL working thread. When concurrent thread number is greater than {@code maxThread} only
-     * maxThread will run in parallel.
-     *
-     * @param maxThread max parallel thread number, values <= 0 are special for clearing the threshold.
+	/**
+	 * 设置最大并发工作线程数
+	 * 当前并发线程数＞{@code maxThread}时，仅有最大线程数将并行运行
+	 * @param maxThread 最大并发线程数，如果≤0，用于清除阈值
      */
     public void setMaxThread(long maxThread) {
         this.maxThread = maxThread;
-    }
+	}
 
-    public long getAvgRt() {
-        return avgRt;
-    }
+	/**
+	 * 获取设置的平均响应时间
+	 * @return 设置的平均响应时间
+	 */
+	public long getAvgRt() {
+		return avgRt;
+	}
 
-    /**
-     * Set max average RT(response time) of all passed requests.
-     *
-     * @param avgRt max average response time, values <= 0 are special for clearing the threshold.
+	/**
+	 * 设置最大的平均响应时间
+	 * @param avgRt 最大的平均响应时间，如果≤0，用于清除阈值
      */
     public void setAvgRt(long avgRt) {
         this.avgRt = avgRt;
-    }
+	}
 
-    public double getHighestSystemLoad() {
-        return highestSystemLoad;
-    }
+	/**
+	 * 获取设置的最大系统负载
+	 * @return 设置的最大系统负载
+	 */
+	public double getHighestSystemLoad() {
+		return highestSystemLoad;
+	}
 
-    /**
-     * <p>
-     * Set highest load. The load is not same as Linux system load, which is not sensitive enough.
-     * To calculate the load, both Linux system load, current global response time and global QPS will be considered,
-     * which means that we need to coordinate with {@link #setAvgRt(long)} and {@link #setQps(double)}
-     * </p>
-     * <p>
-     * Note that this parameter is only available on Unix like system.
-     * </p>
-     *
-     * @param highestSystemLoad highest system load, values <= 0 are special for clearing the threshold.
+	/**
+	 * 设置最高的系统负载，负载不同于Linux的系统负载，因为它不够严谨
+	 * 计算负载，包括Linux系统负载，当前全局的相应时间和全局QPS都会考虑到
+	 * 这意味着需要协调{@link #setAvgRt(long)}和{@link #setQps(double)}
+	 * 需要注意的是，参数仅会在类Unix的系统上可用
+	 * @param highestSystemLoad 最大的系统负载, 如果≤0，用于清除阈值
      * @see SystemRuleManager
      */
     public void setHighestSystemLoad(double highestSystemLoad) {
         this.highestSystemLoad = highestSystemLoad;
     }
 
-    /**
-     * Get highest cpu usage. Cpu usage is between [0, 1]
-     *
-     * @return highest cpu usage
+	/**
+	 * 获取设置的最高CPU使用率
+	 * CPU使用率的范围在[0, 1]
+	 * @return 设置的最高CPU使用率
      */
     public double getHighestCpuUsage() {
         return highestCpuUsage;
     }
 
-    /**
-     * set highest cpu usage. Cpu usage is between [0, 1]
-     *
-     * @param highestCpuUsage the value to set.
+	/**
+	 * 设置最高的CPU使用率
+	 * CPU的使用率范围：[0, 1]
+	 * @param highestCpuUsage CPU使用率
      */
     public void setHighestCpuUsage(double highestCpuUsage) {
         this.highestCpuUsage = highestCpuUsage;
@@ -139,6 +147,7 @@ public class SystemRule extends AbstractRule {
 
     @Override
     public boolean passCheck(Context context, DefaultNode node, int count, Object... args) {
+		// 默认情况下，通过策略
         return true;
     }
 

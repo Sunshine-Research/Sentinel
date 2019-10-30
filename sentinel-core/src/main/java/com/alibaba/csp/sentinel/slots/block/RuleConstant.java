@@ -15,7 +15,7 @@
  */
 package com.alibaba.csp.sentinel.slots.block;
 
-import com.alibaba.csp.sentinel.node.IntervalProperty;
+import com.alibaba.csp.sentinel.slots.block.authority.AuthorityRule;
 
 /**
  * @author youji.zj
@@ -23,21 +23,41 @@ import com.alibaba.csp.sentinel.node.IntervalProperty;
  */
 public final class RuleConstant {
 
-    public static final int FLOW_GRADE_THREAD = 0;
-    public static final int FLOW_GRADE_QPS = 1;
+	/**
+	 * 流控策略
+	 * 并发线程数量
+	 */
+	public static final int FLOW_GRADE_THREAD = 0;
+	/**
+	 * 流控策略
+	 * QPS限制
+	 */
+	public static final int FLOW_GRADE_QPS = 1;
 
-    public static final int DEGRADE_GRADE_RT = 0;
-    /**
-     * Degrade by biz exception ratio in the current {@link IntervalProperty#INTERVAL} second(s).
+	/**
+	 * 降级策略
+	 * 平均响应时间
+	 */
+	public static final int DEGRADE_GRADE_RT = 0;
+	/**
+	 * 降级策略
+	 * 每秒钟业务异常比率
      */
     public static final int DEGRADE_GRADE_EXCEPTION_RATIO = 1;
-    /**
-     * Degrade by biz exception count in the last 60 seconds.
+	/**
+	 * 降级策略
+	 * 每分钟业务异常数量
      */
     public static final int DEGRADE_GRADE_EXCEPTION_COUNT = 2;
 
-    public static final int AUTHORITY_WHITE = 0;
-    public static final int AUTHORITY_BLACK = 1;
+	/**
+	 * {@link AuthorityRule}白名单策略
+	 */
+	public static final int AUTHORITY_WHITE = 0;
+	/**
+	 * {@link AuthorityRule}黑名单策略
+	 */
+	public static final int AUTHORITY_BLACK = 1;
 
 	/**
 	 * 流控策略-
@@ -46,10 +66,22 @@ public final class RuleConstant {
     public static final int STRATEGY_RELATE = 1;
     public static final int STRATEGY_CHAIN = 2;
 
-    public static final int CONTROL_BEHAVIOR_DEFAULT = 0;
-    public static final int CONTROL_BEHAVIOR_WARM_UP = 1;
-    public static final int CONTROL_BEHAVIOR_RATE_LIMITER = 2;
-    public static final int CONTROL_BEHAVIOR_WARM_UP_RATE_LIMITER = 3;
+	/**
+	 * 流量整形控制策略——默认
+	 */
+	public static final int CONTROL_BEHAVIOR_DEFAULT = 0;
+	/**
+	 * 流量整形控制策略——预热
+	 */
+	public static final int CONTROL_BEHAVIOR_WARM_UP = 1;
+	/**
+	 * 流量整形控制策略——令牌限流
+	 */
+	public static final int CONTROL_BEHAVIOR_RATE_LIMITER = 2;
+	/**
+	 * 流量整形控制策略——预热和令牌限流
+	 */
+	public static final int CONTROL_BEHAVIOR_WARM_UP_RATE_LIMITER = 3;
 
     public static final String LIMIT_APP_DEFAULT = "default";
     public static final String LIMIT_APP_OTHER = "other";

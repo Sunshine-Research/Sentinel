@@ -15,77 +15,100 @@
  */
 package com.alibaba.csp.sentinel.slots.block.flow.param;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.util.StringUtil;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
- * @author Eric Zhao
+ * resource度量标准存储器
  * @since 1.6.1
  */
 public final class ParameterMetricStorage {
 
-    private static final Map<String, ParameterMetric> metricsMap = new ConcurrentHashMap<>();
+	/**
+	 * 存储所有resource->度量标准的缓存
+	 */
+	private static final Map<String, ParameterMetric> metricsMap = new ConcurrentHashMap<>();
 
-    /**
-     * Lock for a specific resource.
-     */
-    private static final Object LOCK = new Object();
+	/**
+	 * 对指定resource进行上锁
+	 */
+	private static final Object LOCK = new Object();
 
-    /**
-     * Init the parameter metric and index map for given resource.
-     * Package-private for test.
-     *
-     * @param resourceWrapper resource to init
-     * @param rule            relevant rule
-     */
-    public static void initParamMetricsFor(ResourceWrapper resourceWrapper, /*@Valid*/ ParamFlowRule rule) {
-        if (resourceWrapper == null || resourceWrapper.getName() == null) {
-            return;
-        }
-        String resourceName = resourceWrapper.getName();
-        ParameterMetric metric;
-        // Assume that the resource is valid.
-        if ((metric = metricsMap.get(resourceName)) == null) {
-            synchronized (LOCK) {
-                if ((metric = metricsMap.get(resourceName)) == null) {
-                    metric = new ParameterMetric();
-                    metricsMap.put(resourceWrapper.getName(), metric);
-                    RecordLog.info("[ParameterMetricStorage] Creating parameter metric for: " + resourceWrapper.getName());
-                }
-            }
-        }
-        metric.initialize(rule);
-    }
+	private ParameterMetricStorage() {
+	}
 
-    public static ParameterMetric getParamMetric(ResourceWrapper resourceWrapper) {
-        if (resourceWrapper == null || resourceWrapper.getName() == null) {
-            return null;
-        }
-        return metricsMap.get(resourceWrapper.getName());
-    }
+	/**
+	 * 实例化参数的度量标注，并对给定的resource进行索引映射
+	 * @param resourceWrapper 需要实例化的resource
+	 * @param rule            相关规则
+	 */
+	public static void initParamMetricsFor(ResourceWrapper resourceWrapper, /*@Valid*/ ParamFlowRule rule) {
+		if (resourceWrapper == null || resourceWrapper.getName() == null) {
+			return;
+		}
+		// 获取resource
+		String resourceName = resourceWrapper.getName();
 
-    public static ParameterMetric getParamMetricForResource(String resourceName) {
-        if (resourceName == null) {
-            return null;
-        }
-        return metricsMap.get(resourceName);
-    }
+		ParameterMetric metric;
+		// 获取resource的度量标准
+		if ((metric = metricsMap.get(resourceName)) == null) {
+			synchronized (LOCK) {
+				if ((metric = metricsMap.get(resourceName)) == null) {
+					metric = new ParameterMetric();
+					metricsMap.put(resourceWrapper.getName(), metric);
+					RecordLog.info("[ParameterMetricStorage] Creating parameter metric for: " + resourceWrapper.getName());
+				}
+			}
+		}
+		// 初始化给定规则的计数器
+		metric.initialize(rule);
+	}
 
-    public static void clearParamMetricForResource(String resourceName) {
-        if (StringUtil.isBlank(resourceName)) {
-            return;
-        }
-        metricsMap.remove(resourceName);
-        RecordLog.info("[ParameterMetricStorage] Clearing parameter metric for: " + resourceName);
-    }
+	/**
+	 * 获取给定resource的度量标准
+	 * @param resourceWrapper resource
+	 * @return resource的度量标准
+	 */
+	public static ParameterMetric getParamMetric(ResourceWrapper resourceWrapper) {
+		if (resourceWrapper == null || resourceWrapper.getName() == null) {
+			return null;
+		}
+		return metricsMap.get(resourceWrapper.getName());
+	}
 
-    static Map<String, ParameterMetric> getMetricsMap() {
-        return metricsMap;
-    }
+	/**
+	 * 根据resource name获取度量标准
+	 * @param resourceName resource name
+	 * @return 给定resource name的度量标准
+	 */
+	public static ParameterMetric getParamMetricForResource(String resourceName) {
+		if (resourceName == null) {
+			return null;
+		}
+		return metricsMap.get(resourceName);
+	}
 
-    private ParameterMetricStorage() {}
+	/**
+	 * 清除指定resource name的度量标准
+	 * @param resourceName resource name
+	 */
+	public static void clearParamMetricForResource(String resourceName) {
+		if (StringUtil.isBlank(resourceName)) {
+			return;
+		}
+		metricsMap.remove(resourceName);
+		RecordLog.info("[ParameterMetricStorage] Clearing parameter metric for: " + resourceName);
+	}
+
+	/**
+	 * 获取所有resource的度量标准
+	 * @return 所有resource的度量标准
+	 */
+	static Map<String, ParameterMetric> getMetricsMap() {
+		return metricsMap;
+	}
 }

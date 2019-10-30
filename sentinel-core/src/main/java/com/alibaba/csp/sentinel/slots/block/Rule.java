@@ -19,20 +19,17 @@ import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.node.DefaultNode;
 
 /**
- * Base interface of all rules.
- *
- * @author youji.zj
+ * 规则的基础接口
  */
 public interface Rule {
 
     /**
-     * Check whether current statistical indicators meet this rule, which means not exceeding any threshold.
-     *
-     * @param context current {@link Context}
-     * @param node    current {@link com.alibaba.csp.sentinel.node.Node}
-     * @param count   tokens needed.
-     * @param args    arguments of the original invocation.
-     * @return If current statistical indicators not exceeding any threshold return true, otherwise return false.
+	 * 校验当前统计指标是否符合此规则，意味着所有指标均不能超过设定的阈值
+	 * @param context 当前{@link Context}
+	 * @param node    当前{@link com.alibaba.csp.sentinel.node.Node}
+	 * @param count   需要的token数量
+	 * @param args    自定义参数
+	 * @return 判断规则通过结果
      */
     boolean passCheck(Context context, DefaultNode node, int count, Object... args);
 

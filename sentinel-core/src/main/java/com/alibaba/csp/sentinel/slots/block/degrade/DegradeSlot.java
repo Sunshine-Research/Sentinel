@@ -22,16 +22,17 @@ import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 
 /**
- * A {@link ProcessorSlot} dedicates to {@link DegradeRule} checking.
- *
- * @author leyou
+ * 用于{@link DegradeRule}检查的{@link ProcessorSlot}
+ * 负责插在{@link com.alibaba.csp.sentinel.slotchain.ProcessorSlotChain}上
  */
 public class DegradeSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count, boolean prioritized, Object... args)
         throws Throwable {
+		// 校验降级规则
         DegradeRuleManager.checkDegrade(resourceWrapper, context, node, count);
+		// 进行下一个ProcessorSlot
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 

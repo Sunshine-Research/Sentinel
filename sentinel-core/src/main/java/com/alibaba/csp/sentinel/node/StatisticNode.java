@@ -192,11 +192,12 @@ public class StatisticNode implements Node {
 
     @Override
     public double avgRt() {
+		// 获取每秒成功请求数量
         long successCount = rollingCounterInSecond.success();
         if (successCount == 0) {
             return 0;
         }
-
+		// 每秒的请求时间/请求成功数量
         return rollingCounterInSecond.rt() * 1.0 / successCount;
     }
 

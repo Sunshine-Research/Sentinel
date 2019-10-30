@@ -21,14 +21,14 @@ import com.alibaba.csp.sentinel.slots.block.AbstractRule;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 
 /**
- * Authority rule is designed for limiting by request origins.
- *
- * @author youji.zj
+ * {@link AuthorityRule}用于限制请求的origin
  */
 public class AuthorityRule extends AbstractRule {
 
     /**
-     * Mode: 0 for whitelist; 1 for blacklist.
+	 * 规则模式
+	 * 0：白名单
+	 * 1：黑名单
      */
     private int strategy = RuleConstant.AUTHORITY_WHITE;
 
@@ -48,7 +48,7 @@ public class AuthorityRule extends AbstractRule {
         if (!super.equals(o)) { return false; }
 
         AuthorityRule rule = (AuthorityRule)o;
-
+		// 最后判断策略是否相等
         return strategy == rule.strategy;
     }
 
@@ -61,6 +61,7 @@ public class AuthorityRule extends AbstractRule {
 
     @Override
     public boolean passCheck(Context context, DefaultNode node, int count, Object... args) {
+		// 默认通过
         return true;
     }
 

@@ -46,63 +46,33 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
 	 */
     private static volatile Map<ResourceWrapper, ClusterNode> clusterNodeMap = new HashMap<>();
 
-
+	/**
+	 * 乐观锁
+	 * 用于创建新的{@link ClusterNode}
+	 */
     private static final Object lock = new Object();
 
     private volatile ClusterNode clusterNode = null;
 
-    @Override
-    public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
-                      boolean prioritized, Object... args)
-        throws Throwable {
-        if (clusterNode == null) {
-            synchronized (lock) {
-				// 使用同步的方式创建cluster node
-                if (clusterNode == null) {
-                    clusterNode = new ClusterNode();
-                    HashMap<ResourceWrapper, ClusterNode> newMap = new HashMap<>(Math.max(clusterNodeMap.size(), 16));
-                    newMap.putAll(clusterNodeMap);
-                    newMap.put(node.getId(), clusterNode);
-
-                    clusterNodeMap = newMap;
-                }
-            }
-        }
-        node.setClusterNode(clusterNode);
-
-        /*
-         * if context origin is set, we should get or create a new {@link Node} of
-         * the specific origin.
-         */
-        if (!"".equals(context.getOrigin())) {
-            Node originNode = node.getClusterNode().getOrCreateOriginNode(context.getOrigin());
-            context.getCurEntry().setOriginNode(originNode);
-        }
-
-        fireEntry(context, resourceWrapper, node, count, prioritized, args);
-    }
-
-    @Override
-    public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
-        fireExit(context, resourceWrapper, count, args);
-    }
-
-    /**
-     * Get {@link ClusterNode} of the resource of the specific type.
-     *
+	/**
+	 * 获取特定类型resource的{@link ClusterNode}
      * @param id   resource name.
-     * @param type invoke type.
-     * @return the {@link ClusterNode}
+	 * @param type 调用类型
+	 * @return {@link ClusterNode}
      */
     public static ClusterNode getClusterNode(String id, EntryType type) {
         return clusterNodeMap.get(new StringResourceWrapper(id, type));
-    }
+	}
 
-    /**
-     * Get {@link ClusterNode} of the resource name.
-     *
+	@Override
+	public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
+		fireExit(context, resourceWrapper, count, args);
+	}
+
+	/**
+	 * 获取指定resource name的{@link ClusterNode}
      * @param id resource name.
-     * @return the {@link ClusterNode}.
+	 * @return {@link ClusterNode}.
      */
     public static ClusterNode getClusterNode(String id) {
         if (id == null) {
@@ -120,24 +90,50 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
         return clusterNode;
     }
 
-    /**
-     * Get {@link ClusterNode}s map, this map holds all {@link ClusterNode}s, it's key is resource name,
-     * value is the related {@link ClusterNode}. <br/>
-     * DO NOT MODIFY the map returned.
-     *
-     * @return all {@link ClusterNode}s
+	/**
+	 * 获取存储{@link ClusterNode}的映射map，map持有了所有{@link ClusterNode}
+	 * key: resource name
+	 * value: {@link ClusterNode}
+	 * @return {@link ClusterNode}映射集合
      */
     public static Map<ResourceWrapper, ClusterNode> getClusterNodeMap() {
         return clusterNodeMap;
     }
 
-    /**
-     * Reset all {@link ClusterNode}s. Reset is needed when {@link IntervalProperty#INTERVAL} or
-     * {@link SampleCountProperty#SAMPLE_COUNT} is changed.
+	/**
+	 * 重置所有{@link ClusterNode}
+	 * 在{@link IntervalProperty#INTERVAL}或{@link SampleCountProperty#SAMPLE_COUNT}发生变化是，需要进行重置
      */
     public static void resetClusterNodes() {
         for (ClusterNode node : clusterNodeMap.values()) {
             node.reset();
-        }
-    }
+		}
+	}
+
+	@Override
+	public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
+					  boolean prioritized, Object... args)
+			throws Throwable {
+		if (clusterNode == null) {
+			synchronized (lock) {
+				// 使用同步的方式创建cluster node
+				if (clusterNode == null) {
+					clusterNode = new ClusterNode();
+					HashMap<ResourceWrapper, ClusterNode> newMap = new HashMap<>(Math.max(clusterNodeMap.size(), 16));
+					newMap.putAll(clusterNodeMap);
+					newMap.put(node.getId(), clusterNode);
+					clusterNodeMap = newMap;
+				}
+			}
+		}
+		node.setClusterNode(clusterNode);
+
+		// 如果上下文中设置了origin信息，需要为此创建一个节点
+		if (!"".equals(context.getOrigin())) {
+			Node originNode = node.getClusterNode().getOrCreateOriginNode(context.getOrigin());
+			context.getCurEntry().setOriginNode(originNode);
+		}
+
+		fireEntry(context, resourceWrapper, node, count, prioritized, args);
+	}
 }

@@ -20,49 +20,56 @@ import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.util.StringUtil;
 
 /**
- * Rule checker for white/black list authority.
- *
- * @author Eric Zhao
- * @since 0.2.0
+ * {@link AuthorityRule}规则检查器
  */
 final class AuthorityRuleChecker {
 
-    static boolean passCheck(AuthorityRule rule, Context context) {
-        String requester = context.getOrigin();
+	private AuthorityRuleChecker() {
+	}
 
-        // Empty origin or empty limitApp will pass.
-        if (StringUtil.isEmpty(requester) || StringUtil.isEmpty(rule.getLimitApp())) {
-            return true;
-        }
+	/**
+	 * 检查{@link AuthorityRule}规则
+	 * @param rule    {@link AuthorityRule}
+	 * @param context 上线文
+	 * @return 是否通过{@link AuthorityRule}校验
+	 */
+	static boolean passCheck(AuthorityRule rule, Context context) {
+		// 获取当前请求的origin名称
+		String requester = context.getOrigin();
 
-        // Do exact match with origin name.
-        int pos = rule.getLimitApp().indexOf(requester);
-        boolean contain = pos > -1;
+		// origin名称为空或者没有限制应用，直接判断通过权限规则校验
+		if (StringUtil.isEmpty(requester) || StringUtil.isEmpty(rule.getLimitApp())) {
+			return true;
+		}
 
-        if (contain) {
-            boolean exactlyMatch = false;
-            String[] appArray = rule.getLimitApp().split(",");
-            for (String app : appArray) {
-                if (requester.equals(app)) {
-                    exactlyMatch = true;
-                    break;
-                }
-            }
+		// 进行名称全匹配搜索
+		int pos = rule.getLimitApp().indexOf(requester);
+		boolean contain = pos > -1;
 
-            contain = exactlyMatch;
-        }
+		// 如果包含，就会进行精确匹配搜索
+		if (contain) {
+			boolean exactlyMatch = false;
+			String[] appArray = rule.getLimitApp().split(",");
+			for (String app : appArray) {
+				if (requester.equals(app)) {
+					exactlyMatch = true;
+					break;
+				}
+			}
 
-        int strategy = rule.getStrategy();
-        if (strategy == RuleConstant.AUTHORITY_BLACK && contain) {
-            return false;
-        }
-
-        if (strategy == RuleConstant.AUTHORITY_WHITE && !contain) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private AuthorityRuleChecker() {}
+			contain = exactlyMatch;
+		}
+		// 获取权限策略方式
+		int strategy = rule.getStrategy();
+		// 如果策略是黑名单方式，并且包含当前请求的origin，规则校验不通过，返回false
+		if (strategy == RuleConstant.AUTHORITY_BLACK && contain) {
+			return false;
+		}
+		// 如果策略是白名单方式，并且不包含当前请求的origin，规则校验不通过，返回false
+		if (strategy == RuleConstant.AUTHORITY_WHITE && !contain) {
+			return false;
+		}
+		// 其他情况下，通过规则校验，返回true
+		return true;
+	}
 }

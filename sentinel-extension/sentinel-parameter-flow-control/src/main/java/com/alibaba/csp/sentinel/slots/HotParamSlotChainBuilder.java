@@ -29,8 +29,7 @@ import com.alibaba.csp.sentinel.slots.statistic.StatisticSlot;
 import com.alibaba.csp.sentinel.slots.system.SystemSlot;
 
 /**
- * @author Eric Zhao
- * @since 0.2.0
+ * 热点参数slot chain建造器
  */
 public class HotParamSlotChainBuilder implements SlotChainBuilder {
 

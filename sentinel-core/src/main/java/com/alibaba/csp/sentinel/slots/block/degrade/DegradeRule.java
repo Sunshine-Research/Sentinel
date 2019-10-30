@@ -15,12 +15,6 @@
  */
 package com.alibaba.csp.sentinel.slots.block.degrade;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.node.ClusterNode;
@@ -29,215 +23,247 @@ import com.alibaba.csp.sentinel.slots.block.AbstractRule;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
- * <p>
- * Degrade is used when the resources are in an unstable state, these resources
- * will be degraded within the next defined time window. There are two ways to
- * measure whether a resource is stable or not:
- * </p>
- * <ul>
- * <li>
- * Average response time ({@code DEGRADE_GRADE_RT}): When
- * the average RT exceeds the threshold ('count' in 'DegradeRule', in milliseconds), the
- * resource enters a quasi-degraded state. If the RT of next coming 5
- * requests still exceed this threshold, this resource will be downgraded, which
- * means that in the next time window (defined in 'timeWindow', in seconds) all the
- * access to this resource will be blocked.
- * </li>
- * <li>
- * Exception ratio: When the ratio of exception count per second and the
- * success qps exceeds the threshold, access to the resource will be blocked in
- * the coming window.
- * </li>
- * </ul>
- *
- * @author jialiang.linjl
+ * 降级用于resource处于不稳定的状态，这些resource将在下一个定义的时间范围内降级
+ * 有两种方式可以确认resource是否处于稳定状态：
+ * 平均响应时间（{@code DEGRADE_GRADE_RT}）：当平均响应时间超出阈值（count' in 'DegradeRule', ms级别）
+ * resource将会进入quasi-degraded状态，如果接下来的5次请求的响应时间依然超出阈值，resource就会被降级，
+ * 意味着在下一个窗口，所有对此resource的请求都会被阻塞住
+ * 异常比率：异常的QPS比率超过了阈值，所有对此resource的请求都会被阻塞住
  */
 public class DegradeRule extends AbstractRule {
 
-    private static final int RT_MAX_EXCEED_N = 5;
+	/**
+	 * 平均响应时间最大超出阈值个数
+	 * 用于在超出平均响应时间后，过后的阈值个数请求，如果继续超过平均响应时间，则开启降级策略
+	 */
+	private static final int RT_MAX_EXCEED_N = 5;
 
-    @SuppressWarnings("PMD.ThreadPoolCreationRule")
-    private static ScheduledExecutorService pool = Executors.newScheduledThreadPool(
-        Runtime.getRuntime().availableProcessors(), new NamedThreadFactory("sentinel-degrade-reset-task", true));
+	/**
+	 * 调度降级恢复任务的线程池
+	 */
+	@SuppressWarnings("PMD.ThreadPoolCreationRule")
+	private static ScheduledExecutorService pool = Executors.newScheduledThreadPool(
+			Runtime.getRuntime().availableProcessors(), new NamedThreadFactory("sentinel-degrade-reset-task", true));
+	/**
+	 * 进行降级规则检查之前的乐观锁
+	 */
+	private final AtomicBoolean cut = new AtomicBoolean(false);
+	/**
+	 * 响应时间阈值或者异常比率阈值数量
+	 */
+	private double count;
+	/**
+	 * 降级恢复时间，单位s
+	 */
+	private int timeWindow;
+	/**
+	 * 降级策略
+	 * 0：平均响应时间
+	 * 1：异常比率
+	 */
+	private int grade = RuleConstant.DEGRADE_GRADE_RT;
+	/**
+	 * 平均响应时间超过设定阈值后的请求个数计数器
+	 */
+	private AtomicLong passCount = new AtomicLong(0);
 
-    public DegradeRule() {}
+	public DegradeRule() {
+	}
 
-    public DegradeRule(String resourceName) {
-        setResource(resourceName);
-    }
+	public DegradeRule(String resourceName) {
+		setResource(resourceName);
+	}
 
-    /**
-     * RT threshold or exception ratio threshold count.
-     */
-    private double count;
+	public int getGrade() {
+		return grade;
+	}
 
-    /**
-     * Degrade recover timeout (in seconds) when degradation occurs.
-     */
-    private int timeWindow;
+	public DegradeRule setGrade(int grade) {
+		this.grade = grade;
+		return this;
+	}
 
-    /**
-     * Degrade strategy (0: average RT, 1: exception ratio).
-     */
-    private int grade = RuleConstant.DEGRADE_GRADE_RT;
+	public double getCount() {
+		return count;
+	}
 
-    private final AtomicBoolean cut = new AtomicBoolean(false);
+	public DegradeRule setCount(double count) {
+		this.count = count;
+		return this;
+	}
 
-    public int getGrade() {
-        return grade;
-    }
+	private boolean isCut() {
+		return cut.get();
+	}
 
-    public DegradeRule setGrade(int grade) {
-        this.grade = grade;
-        return this;
-    }
+	private void setCut(boolean cut) {
+		this.cut.set(cut);
+	}
 
-    private AtomicLong passCount = new AtomicLong(0);
+	public AtomicLong getPassCount() {
+		return passCount;
+	}
 
-    public double getCount() {
-        return count;
-    }
+	public int getTimeWindow() {
+		return timeWindow;
+	}
 
-    public DegradeRule setCount(double count) {
-        this.count = count;
-        return this;
-    }
+	public DegradeRule setTimeWindow(int timeWindow) {
+		this.timeWindow = timeWindow;
+		return this;
+	}
 
-    private boolean isCut() {
-        return cut.get();
-    }
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof DegradeRule)) {
+			return false;
+		}
+		if (!super.equals(o)) {
+			return false;
+		}
 
-    private void setCut(boolean cut) {
-        this.cut.set(cut);
-    }
+		DegradeRule that = (DegradeRule) o;
 
-    public AtomicLong getPassCount() {
-        return passCount;
-    }
+		if (count != that.count) {
+			return false;
+		}
+		if (timeWindow != that.timeWindow) {
+			return false;
+		}
+		if (grade != that.grade) {
+			return false;
+		}
+		return true;
+	}
 
-    public int getTimeWindow() {
-        return timeWindow;
-    }
+	@Override
+	public int hashCode() {
+		int result = super.hashCode();
+		result = 31 * result + new Double(count).hashCode();
+		result = 31 * result + timeWindow;
+		result = 31 * result + grade;
+		return result;
+	}
 
-    public DegradeRule setTimeWindow(int timeWindow) {
-        this.timeWindow = timeWindow;
-        return this;
-    }
+	/**
+	 * 规则校验
+	 * @param context      当前上下文
+	 * @param node         当前节点
+	 * @param acquireCount 需要获取的token数量
+	 * @param args         自定义参数
+	 * @return 是否通过降级策略
+	 */
+	@Override
+	public boolean passCheck(Context context, DefaultNode node, int acquireCount, Object... args) {
+		// 获取乐观锁
+		if (cut.get()) {
+			return false;
+		}
+		// 获取ClusterNode，用于提供Cluster数据信息
+		ClusterNode clusterNode = ClusterBuilderSlot.getClusterNode(this.getResource());
+		if (clusterNode == null) {
+			return true;
+		}
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof DegradeRule)) {
-            return false;
-        }
-        if (!super.equals(o)) {
-            return false;
-        }
+		if (grade == RuleConstant.DEGRADE_GRADE_RT) {
+			// 响应时间降级策略
+			// 从ClusterNode获取实时统计的成功请求的平均响应时间
+			double rt = clusterNode.avgRt();
+			// 如果计算出的平均响应时间小于阈值，判定通过
+			if (rt < this.count) {
+				passCount.set(0);
+				return true;
+			}
 
-        DegradeRule that = (DegradeRule)o;
+			// 否则一经超过阈值，将启动降级策略
+			// 如果接下来的五次请求依然超出了阈值，才会走最后的降级策略
+			if (passCount.incrementAndGet() < RT_MAX_EXCEED_N) {
+				// 接下来的五次请求，如果没有超过阈值，那么依然会判定通过降级检查
+				return true;
+			}
+		} else if (grade == RuleConstant.DEGRADE_GRADE_EXCEPTION_RATIO) {
+			// 异常比率策略
+			// 获取当前resource的发生异常QPS
+			double exception = clusterNode.exceptionQps();
+			// 获取当前resource的成功请求QPS
+			double success = clusterNode.successQps();
+			// 获取当前resource的总QPS
+			double total = clusterNode.totalQps();
+			// 如果通总QPS小于阈值上线，判定通过降级规则检查
+			if (total < RT_MAX_EXCEED_N) {
+				return true;
+			}
+			// 真正成功的请求数=成功请求数-异常请求数
+			double realSuccess = success - exception;
+			// 如果没有真正成功的请求数，并且异常数量小于设定的阈值
+			if (realSuccess <= 0 && exception < RT_MAX_EXCEED_N) {
+				// 判定通过降级规则检查
+				return true;
+			}
+			// 如果异常比率占成功比率，没有超过设定的阈值
+			if (exception / success < count) {
+				// 判定通过降级规则检查
+				return true;
+			}
+		} else if (grade == RuleConstant.DEGRADE_GRADE_EXCEPTION_COUNT) {
+			// 获取当前resource出现的异常数量，统计的是每分钟的数量
+			double exception = clusterNode.totalException();
+			// 如果resource每分钟的异常数量没有超出设定的阈值
+			if (exception < count) {
+				// 判定通过降级规则检查
+				return true;
+			}
+		}
+		// 总结一下，只有在以下情况会走到这里
+		// 平均响应时间：计算的平均响应时间大于阈值，接下来的五次请求也已经超过缓冲的阈值
+		// 异常比率：每秒钟出现的异常数量已经超过设定的阈值，有真正成功的请求，或者异常数量超过缓冲的异常数量
+		// 异常数量：每分钟出现的异常数量已经超过阈值
+		// 首先乐观锁设置为不可用
+		if (cut.compareAndSet(false, true)) {
+			// 需要进行重置
+			ResetTask resetTask = new ResetTask(this);
+			// 根据降级时间进行恢复
+			pool.schedule(resetTask, timeWindow, TimeUnit.SECONDS);
+		}
 
-        if (count != that.count) {
-            return false;
-        }
-        if (timeWindow != that.timeWindow) {
-            return false;
-        }
-        if (grade != that.grade) {
-            return false;
-        }
-        return true;
-    }
+		return false;
+	}
 
-    @Override
-    public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + new Double(count).hashCode();
-        result = 31 * result + timeWindow;
-        result = 31 * result + grade;
-        return result;
-    }
+	@Override
+	public String toString() {
+		return "DegradeRule{" +
+				"resource=" + getResource() +
+				", grade=" + grade +
+				", count=" + count +
+				", limitApp=" + getLimitApp() +
+				", timeWindow=" + timeWindow +
+				"}";
+	}
 
-    @Override
-    public boolean passCheck(Context context, DefaultNode node, int acquireCount, Object... args) {
-        if (cut.get()) {
-            return false;
-        }
+	private static final class ResetTask implements Runnable {
 
-        ClusterNode clusterNode = ClusterBuilderSlot.getClusterNode(this.getResource());
-        if (clusterNode == null) {
-            return true;
-        }
+		private DegradeRule rule;
 
-        if (grade == RuleConstant.DEGRADE_GRADE_RT) {
-            double rt = clusterNode.avgRt();
-            if (rt < this.count) {
-                passCount.set(0);
-                return true;
-            }
+		ResetTask(DegradeRule rule) {
+			this.rule = rule;
+		}
 
-            // Sentinel will degrade the service only if count exceeds.
-            if (passCount.incrementAndGet() < RT_MAX_EXCEED_N) {
-                return true;
-            }
-        } else if (grade == RuleConstant.DEGRADE_GRADE_EXCEPTION_RATIO) {
-            double exception = clusterNode.exceptionQps();
-            double success = clusterNode.successQps();
-            double total = clusterNode.totalQps();
-            // if total qps less than RT_MAX_EXCEED_N, pass.
-            if (total < RT_MAX_EXCEED_N) {
-                return true;
-            }
-
-            double realSuccess = success - exception;
-            if (realSuccess <= 0 && exception < RT_MAX_EXCEED_N) {
-                return true;
-            }
-
-            if (exception / success < count) {
-                return true;
-            }
-        } else if (grade == RuleConstant.DEGRADE_GRADE_EXCEPTION_COUNT) {
-            double exception = clusterNode.totalException();
-            if (exception < count) {
-                return true;
-            }
-        }
-
-        if (cut.compareAndSet(false, true)) {
-            ResetTask resetTask = new ResetTask(this);
-            pool.schedule(resetTask, timeWindow, TimeUnit.SECONDS);
-        }
-
-        return false;
-    }
-
-    @Override
-    public String toString() {
-        return "DegradeRule{" +
-            "resource=" + getResource() +
-            ", grade=" + grade +
-            ", count=" + count +
-            ", limitApp=" + getLimitApp() +
-            ", timeWindow=" + timeWindow +
-            "}";
-    }
-
-    private static final class ResetTask implements Runnable {
-
-        private DegradeRule rule;
-
-        ResetTask(DegradeRule rule) {
-            this.rule = rule;
-        }
-
-        @Override
-        public void run() {
-            rule.getPassCount().set(0);
-            rule.cut.set(false);
-        }
-    }
+		@Override
+		public void run() {
+			// 计数器归零，释放乐观锁
+			rule.getPassCount().set(0);
+			rule.cut.set(false);
+		}
+	}
 }
 

@@ -15,11 +15,11 @@
  */
 package com.alibaba.csp.sentinel.cluster.flow.statistic.limit;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.alibaba.csp.sentinel.cluster.server.config.ClusterServerConfigManager;
 import com.alibaba.csp.sentinel.util.AssertUtil;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author Eric Zhao
@@ -29,55 +29,85 @@ public final class GlobalRequestLimiter {
 
     private static final Map<String, RequestLimiter> GLOBAL_QPS_LIMITER_MAP = new ConcurrentHashMap<>();
 
-    public static void initIfAbsent(String namespace) {
-        AssertUtil.notEmpty(namespace, "namespace cannot be empty");
-        if (!GLOBAL_QPS_LIMITER_MAP.containsKey(namespace)) {
-            GLOBAL_QPS_LIMITER_MAP.put(namespace, new RequestLimiter(ClusterServerConfigManager.getMaxAllowedQps(namespace)));
-        }
-    }
+	/**
+	 * 初始化全局请求限制器
+	 * @param namespace 命名空间
+	 */
+	public static void initIfAbsent(String namespace) {
+		AssertUtil.notEmpty(namespace, "namespace cannot be empty");
+		// 如果没有存在此命名空间的限制器，使用集群配置的数据初始化一个限制器
+		if (!GLOBAL_QPS_LIMITER_MAP.containsKey(namespace)) {
+			GLOBAL_QPS_LIMITER_MAP.put(namespace, new RequestLimiter(ClusterServerConfigManager.getMaxAllowedQps(namespace)));
+		}
+	}
 
-    public static RequestLimiter getRequestLimiter(String namespace) {
-        if (namespace == null) {
-            return null;
-        }
-        return GLOBAL_QPS_LIMITER_MAP.get(namespace);
-    }
+	/**
+	 * 获取指定命名空间的限制器
+	 * @param namespace 给定的命名空间
+	 * @return 请求限制器
+	 */
+	public static RequestLimiter getRequestLimiter(String namespace) {
+		if (namespace == null) {
+			return null;
+		}
+		return GLOBAL_QPS_LIMITER_MAP.get(namespace);
+	}
 
-    public static boolean tryPass(String namespace) {
-        if (namespace == null) {
-            return false;
-        }
-        RequestLimiter limiter = GLOBAL_QPS_LIMITER_MAP.get(namespace);
-        if (limiter == null) {
-            return true;
-        }
-        return limiter.tryPass();
-    }
+	/**
+	 * 尝试通过
+	 * @param namespace 命名空间
+	 * @return 通过结果
+	 */
+	public static boolean tryPass(String namespace) {
+		if (namespace == null) {
+			return false;
+		}
+		RequestLimiter limiter = GLOBAL_QPS_LIMITER_MAP.get(namespace);
+		if (limiter == null) {
+			return true;
+		}
+		// 使用请求限制器，判断是否可通过
+		return limiter.tryPass();
+	}
 
-    public static double getCurrentQps(String namespace) {
-        RequestLimiter limiter = getRequestLimiter(namespace);
-        if (limiter == null) {
-            return 0;
-        }
-        return limiter.getQps();
-    }
+	/**
+	 * 获取当前的QPS
+	 * @param namespace 给定的命名空间
+	 * @return 当前QPS
+	 */
+	public static double getCurrentQps(String namespace) {
+		RequestLimiter limiter = getRequestLimiter(namespace);
+		if (limiter == null) {
+			return 0;
+		}
+		return limiter.getQps();
+	}
 
-    public static double getMaxAllowedQps(String namespace) {
-        RequestLimiter limiter = getRequestLimiter(namespace);
-        if (limiter == null) {
-            return 0;
-        }
-        return limiter.getQpsAllowed();
-    }
+	/**
+	 * 获取最大可通过的QPS
+	 * @param namespace 给定的命名空间
+	 * @return 可通过的QPS
+	 */
+	public static double getMaxAllowedQps(String namespace) {
+		RequestLimiter limiter = getRequestLimiter(namespace);
+		if (limiter == null) {
+			return 0;
+		}
+		return limiter.getQpsAllowed();
+	}
 
-    public static void applyMaxQpsChange(double maxAllowedQps) {
-        AssertUtil.isTrue(maxAllowedQps >= 0, "max allowed QPS should > 0");
-        for (RequestLimiter limiter : GLOBAL_QPS_LIMITER_MAP.values()) {
-            if (limiter != null) {
-                limiter.setQpsAllowed(maxAllowedQps);
-            }
-        }
-    }
+	/**
+	 * 设置最大允许通过的QPS
+	 * @param maxAllowedQps 新最大允许通过的QPS
+	 */
+	public static void applyMaxQpsChange(double maxAllowedQps) {
+		AssertUtil.isTrue(maxAllowedQps >= 0, "max allowed QPS should > 0");
+		for (RequestLimiter limiter : GLOBAL_QPS_LIMITER_MAP.values()) {
+			if (limiter != null) {
+				limiter.setQpsAllowed(maxAllowedQps);
+			}
+		}
+	}
 
     private GlobalRequestLimiter() {}
 }

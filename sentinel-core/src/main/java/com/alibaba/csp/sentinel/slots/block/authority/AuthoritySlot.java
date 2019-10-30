@@ -15,20 +15,16 @@
  */
 package com.alibaba.csp.sentinel.slots.block.authority;
 
-import java.util.Map;
-import java.util.Set;
-
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
-import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 
+import java.util.Map;
+import java.util.Set;
+
 /**
- * A {@link ProcessorSlot} that dedicates to {@link AuthorityRule} checking.
- *
- * @author leyou
- * @author Eric Zhao
+ * 黑白名单模式slot
  */
 public class AuthoritySlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
@@ -44,22 +40,31 @@ public class AuthoritySlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         fireExit(context, resourceWrapper, count, args);
     }
 
-    void checkBlackWhiteAuthority(ResourceWrapper resource, Context context) throws AuthorityException {
-        Map<String, Set<AuthorityRule>> authorityRules = AuthorityRuleManager.getAuthorityRules();
+	/**
+	 * 校验黑白名单规则
+	 * @param resource resource
+	 * @param context  上下文
+	 * @throws AuthorityException 校验中发生的异常
+	 */
+	void checkBlackWhiteAuthority(ResourceWrapper resource, Context context) throws AuthorityException {
+		// 获取所有AuthorityRule
+		Map<String, Set<AuthorityRule>> authorityRules = AuthorityRuleManager.getAuthorityRules();
 
-        if (authorityRules == null) {
-            return;
-        }
+		if (authorityRules == null) {
+			return;
+		}
 
-        Set<AuthorityRule> rules = authorityRules.get(resource.getName());
-        if (rules == null) {
-            return;
-        }
+		// 获取指定resource的AuthorityRule集合
+		Set<AuthorityRule> rules = authorityRules.get(resource.getName());
+		if (rules == null) {
+			return;
+		}
 
-        for (AuthorityRule rule : rules) {
-            if (!AuthorityRuleChecker.passCheck(rule, context)) {
-                throw new AuthorityException(context.getOrigin(), rule);
-            }
-        }
-    }
+		for (AuthorityRule rule : rules) {
+			// 对于所有的AuthorityRule，进行规则检查
+			if (!AuthorityRuleChecker.passCheck(rule, context)) {
+				throw new AuthorityException(context.getOrigin(), rule);
+			}
+		}
+	}
 }
