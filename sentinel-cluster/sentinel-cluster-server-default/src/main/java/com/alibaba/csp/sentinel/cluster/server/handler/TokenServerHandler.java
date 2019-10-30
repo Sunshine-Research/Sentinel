@@ -15,8 +15,6 @@
  */
 package com.alibaba.csp.sentinel.cluster.server.handler;
 
-import java.net.InetSocketAddress;
-
 import com.alibaba.csp.sentinel.cluster.ClusterConstants;
 import com.alibaba.csp.sentinel.cluster.request.ClusterRequest;
 import com.alibaba.csp.sentinel.cluster.response.ClusterResponse;
@@ -26,9 +24,10 @@ import com.alibaba.csp.sentinel.cluster.server.processor.RequestProcessor;
 import com.alibaba.csp.sentinel.cluster.server.processor.RequestProcessorProvider;
 import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.util.StringUtil;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+
+import java.net.InetSocketAddress;
 
 /**
  * Netty server handler for Sentinel token server.
@@ -60,23 +59,31 @@ public class TokenServerHandler extends ChannelInboundHandlerAdapter {
     @Override
     @SuppressWarnings("unchecked")
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+		// 更新最近一次读取的时间
         globalConnectionPool.refreshLastReadTime(ctx.channel());
+		// 集群请求
         if (msg instanceof ClusterRequest) {
+			// 构建集群请求
             ClusterRequest request = (ClusterRequest)msg;
 
             // Client ping with its namespace, add to connection manager.
+			// 如果请求类型是ping心跳请求
             if (request.getType() == ClusterConstants.MSG_TYPE_PING) {
+				// 处理心跳请求
                 handlePingRequest(ctx, request);
                 return;
             }
 
-            // Pick request processor for request type.
+			// 根据请求类型解析为具体的RequestProcessor进行处理
             RequestProcessor<?, ?> processor = RequestProcessorProvider.getProcessor(request.getType());
             if (processor == null) {
+				// 异常请求类型，返回请求失败
                 RecordLog.warn("[TokenServerHandler] No processor for request type: " + request.getType());
                 writeBadResponse(ctx, request);
             } else {
+				// 处理请求
                 ClusterResponse<?> response = processor.processRequest(request);
+				// 返回响应
                 writeResponse(ctx, response);
             }
         }

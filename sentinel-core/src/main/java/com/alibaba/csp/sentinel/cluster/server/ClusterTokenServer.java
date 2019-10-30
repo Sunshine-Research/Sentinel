@@ -16,24 +16,21 @@
 package com.alibaba.csp.sentinel.cluster.server;
 
 /**
- * Token server interface for distributed flow control.
- *
- * @author Eric Zhao
+ * Token Server接口，用于分布式流控
  * @since 1.4.0
  */
 public interface ClusterTokenServer {
 
     /**
-     * Start the Sentinel cluster server.
-     *
-     * @throws Exception if any error occurs
+	 * 启动Sentinel集群服务端
+	 * @throws Exception 出现的异常
      */
     void start() throws Exception;
 
     /**
-     * Stop the Sentinel cluster server.
+	 * 关闭Sentinel集群服务端
      *
-     * @throws Exception if any error occurs
+	 * @throws Exception 出现的异常
      */
     void stop() throws Exception;
 }

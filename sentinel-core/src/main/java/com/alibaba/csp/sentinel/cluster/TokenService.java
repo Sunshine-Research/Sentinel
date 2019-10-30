@@ -18,30 +18,26 @@ package com.alibaba.csp.sentinel.cluster;
 import java.util.Collection;
 
 /**
- * Service interface of flow control.
- *
- * @author Eric Zhao
+ * 流控的服务接口
  * @since 1.4.0
  */
 public interface TokenService {
 
     /**
-     * Request tokens from remote token server.
-     *
-     * @param ruleId the unique rule ID
-     * @param acquireCount token count to acquire
-     * @param prioritized whether the request is prioritized
-     * @return result of the token request
+	 * 向token server请求token数量
+	 * @param ruleId 集群全局唯一ID
+	 * @param acquireCount 需要获取的数量
+	 * @param prioritized 请求是否开启优先级策略
+	 * @return token请求结果
      */
     TokenResult requestToken(Long ruleId, int acquireCount, boolean prioritized);
 
     /**
-     * Request tokens for a specific parameter from remote token server.
-     *
-     * @param ruleId the unique rule ID
-     * @param acquireCount token count to acquire
-     * @param params parameter list
-     * @return result of the token request
+	 * 向token server请求指定参数的token数量
+	 * @param ruleId 集群全局唯一ID
+	 * @param acquireCount 需要获取的数量
+	 * @param params 请求的参数列表
+	 * @return token请求结果
      */
     TokenResult requestParamToken(Long ruleId, int acquireCount, Collection<Object> params);
 }

@@ -18,9 +18,10 @@ package com.alibaba.csp.sentinel.cluster.server;
 import com.alibaba.csp.sentinel.cluster.TokenService;
 
 /**
- * Embedded token server interface that can work in embedded mode.
- *
- * @author Eric Zhao
+ * 嵌入模式下的Token Server接口
+ * 嵌入模式是指内置的Token Server和服务在同一个进程启动
+ * Token Server和client可以随时进行身份的转换
+ * 缺点：隔离性不佳，可能会影响应用本身
  * @since 1.4.0
  */
 public interface EmbeddedClusterTokenServer extends ClusterTokenServer, TokenService {

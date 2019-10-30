@@ -19,38 +19,32 @@ import com.alibaba.csp.sentinel.cluster.TokenServerDescriptor;
 import com.alibaba.csp.sentinel.cluster.TokenService;
 
 /**
- * Token client interface for distributed flow control.
- *
- * @author Eric Zhao
+ * token客户端接口，用于分布式流控
  * @since 1.4.0
  */
 public interface ClusterTokenClient extends TokenService {
 
     /**
-     * Get descriptor of current token server.
-     *
-     * @return current token server if connected, otherwise null
+	 * 获取当前token server的描述
+	 * @return 当前已连接的token server描述，没有已连接的token server，返回null
      */
     TokenServerDescriptor currentServer();
 
     /**
-     * Start the token client.
-     *
-     * @throws Exception some error occurs
+	 * 启动token client
+	 * @throws Exception 一些异常
      */
     void start() throws Exception;
 
     /**
-     * Stop the token client.
-     *
-     * @throws Exception some error occurs
+	 * 停止token client
+	 * @throws Exception 一些异常
      */
     void stop() throws Exception;
 
     /**
-     * Get state of the cluster token client.
-     *
-     * @return state of the cluster token client
+	 * 获取当前集群token client的状态
+	 * @return 当前集群token client的状态
      */
     int getState();
 }
