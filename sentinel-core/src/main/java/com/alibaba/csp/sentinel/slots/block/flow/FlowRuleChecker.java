@@ -101,62 +101,90 @@ public class FlowRuleChecker {
         return rule.getRater().canPass(selectedNode, acquireCount, prioritized);
     }
 
-    static Node selectReferenceNode(FlowRule rule, Context context, DefaultNode node) {
-        String refResource = rule.getRefResource();
-        int strategy = rule.getStrategy();
+	/**
+	 * 选座关联的数据统计节点
+	 * @param rule    指定流控规则
+	 * @param context 请求上下文
+	 * @param node    上下文关联的节点
+	 * @return 提供数据的数据统计节点
+	 */
+	static Node selectReferenceNode(FlowRule rule, Context context, DefaultNode node) {
+		// 获取当前resource关联的resource
+		String refResource = rule.getRefResource();
+		// 获取当前resource规则的流控策略
+		int strategy = rule.getStrategy();
+		// 如果没有关联resource，视为没有数据统计节点
+		if (StringUtil.isEmpty(refResource)) {
+			return null;
+		}
+		// 如果流控策略是关联流控策略，则使用关联resource的ClusterNode作为数据统计节点
+		if (strategy == RuleConstant.STRATEGY_RELATE) {
+			return ClusterBuilderSlot.getClusterNode(refResource);
+		}
+		// 如果流控策略是链式流控策略
+		if (strategy == RuleConstant.STRATEGY_CHAIN) {
+			// 如果链式调用并不在同一个Context中，则无法获取数据统计节点
+			if (!refResource.equals(context.getName())) {
+				return null;
+			}
+			// 否则使用当前Context使用的数据统计节点
+			return node;
+		}
+		// 没有找到合法的节点，返回null
+		return null;
+	}
 
-        if (StringUtil.isEmpty(refResource)) {
-            return null;
-        }
+	/**
+	 * 过滤origin名称，排除"default"或者"other"的origin名称
+	 * 也就是请求必须制定明确的origin名称
+	 * @param origin 指定的origin名称
+	 * @return 是否还有自定义的origin名称
+	 */
+	private static boolean filterOrigin(String origin) {
+		// origin不可以为"default"或者"other"
+		return !RuleConstant.LIMIT_APP_DEFAULT.equals(origin) && !RuleConstant.LIMIT_APP_OTHER.equals(origin);
+	}
 
-        if (strategy == RuleConstant.STRATEGY_RELATE) {
-            return ClusterBuilderSlot.getClusterNode(refResource);
-        }
-
-        if (strategy == RuleConstant.STRATEGY_CHAIN) {
-            if (!refResource.equals(context.getName())) {
-                return null;
-            }
-            return node;
-        }
-        // No node.
-        return null;
-    }
-
-    private static boolean filterOrigin(String origin) {
-        // Origin cannot be `default` or `other`.
-        return !RuleConstant.LIMIT_APP_DEFAULT.equals(origin) && !RuleConstant.LIMIT_APP_OTHER.equals(origin);
-    }
-
-    static Node selectNodeByRequesterAndStrategy(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node) {
-        // The limit app should not be empty.
-        String limitApp = rule.getLimitApp();
-        int strategy = rule.getStrategy();
-        String origin = context.getOrigin();
-
-        if (limitApp.equals(origin) && filterOrigin(origin)) {
-            if (strategy == RuleConstant.STRATEGY_DIRECT) {
-                // Matches limit origin, return origin statistic node.
-                return context.getOriginNode();
-            }
-
-            return selectReferenceNode(rule, context, node);
-        } else if (RuleConstant.LIMIT_APP_DEFAULT.equals(limitApp)) {
-            if (strategy == RuleConstant.STRATEGY_DIRECT) {
-                // Return the cluster node.
-                return node.getClusterNode();
-            }
-
-            return selectReferenceNode(rule, context, node);
-        } else if (RuleConstant.LIMIT_APP_OTHER.equals(limitApp)
-            && FlowRuleManager.isOtherOrigin(origin, rule.getResource())) {
-            if (strategy == RuleConstant.STRATEGY_DIRECT) {
-                return context.getOriginNode();
-            }
-
-            return selectReferenceNode(rule, context, node);
-        }
-
+	/**
+	 * 根据请求和策略选择数据统计节点
+	 * @param rule    指定流控规则
+	 * @param context 请求上下文
+	 * @param node    上下文关联的节点
+	 * @return 提供数据的数据统计节点
+	 */
+	static Node selectNodeByRequesterAndStrategy(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node) {
+		// 必须参数校验
+		String limitApp = rule.getLimitApp();
+		int strategy = rule.getStrategy();
+		String origin = context.getOrigin();
+		// 如果origin名称指定了除"default"或"other"之外的origin名称
+		if (limitApp.equals(origin) && filterOrigin(origin)) {
+			// 并且策略是直接流控控制
+			if (strategy == RuleConstant.STRATEGY_DIRECT) {
+				// 直接返回当前上下文正在处理的数据统计节点
+				return context.getOriginNode();
+			}
+			// 否则，使用关联的数据统计节点
+			return selectReferenceNode(rule, context, node);
+		} else if (RuleConstant.LIMIT_APP_DEFAULT.equals(limitApp)) {
+			// 如果origin名称范围是"default"
+			if (strategy == RuleConstant.STRATEGY_DIRECT) {
+				// 并且策略是直接流控控制，直接返回ClusterNode作为数据统计节点
+				return node.getClusterNode();
+			}
+			// 否则，使用关联的数据统计节点
+			return selectReferenceNode(rule, context, node);
+		} else if (RuleConstant.LIMIT_APP_OTHER.equals(limitApp)
+				&& FlowRuleManager.isOtherOrigin(origin, rule.getResource())) {
+			// 如果策略是其他origin的流控策略，并且
+			// 并且策略是直接流控控制，直接返回当前上下文正在处理的数据统计节点
+			if (strategy == RuleConstant.STRATEGY_DIRECT) {
+				return context.getOriginNode();
+			}
+			// 否则，使用关联的数据统计节点
+			return selectReferenceNode(rule, context, node);
+		}
+		// 策略校验没有通过，没有获取到数据统计节点
 		return null;
 	}
 

@@ -21,19 +21,10 @@ import com.alibaba.csp.sentinel.slots.block.AbstractRule;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 
 /**
- * <p>
- * Each flow rule is mainly composed of three factors: <strong>grade</strong>,
- * <strong>strategy</strong> and <strong>controlBehavior</strong>:
- * </p>
- * <ul>
- *     <li>The {@link #grade} represents the threshold type of flow control (by QPS or thread count).</li>
- *     <li>The {@link #strategy} represents the strategy based on invocation relation.</li>
- *     <li>The {@link #controlBehavior} represents the QPS shaping behavior (actions on incoming request when QPS
- *     exceeds the threshold).</li>
- * </ul>
- *
- * @author jialiang.linjl
- * @author Eric Zhao
+ * 每个流控规则主要由以下三个因子组成：
+ * grade：流控等级，线程数、QPS
+ * strategy：流控策略，直接流控、关联调用流控、链式调用流控
+ * controlBehavior：流控表现形式，直接拒绝、预热模式、匀速排队
  */
 public class FlowRule extends AbstractRule {
 
@@ -63,28 +54,31 @@ public class FlowRule extends AbstractRule {
 
     /**
 	 * 基于调用链的流控策略
-     *
-     * {@link RuleConstant#STRATEGY_DIRECT} for direct flow control (by origin);
-     * {@link RuleConstant#STRATEGY_RELATE} for relevant flow control (with relevant resource);
-     * {@link RuleConstant#STRATEGY_CHAIN} for chain flow control (by entrance resource).
+	 * {@link RuleConstant#STRATEGY_DIRECT} 根据origin的直接流量控制
+	 * {@link RuleConstant#STRATEGY_RELATE} 关联流量控制
+	 * {@link RuleConstant#STRATEGY_CHAIN} 链式流量控制
      */
     private int strategy = RuleConstant.STRATEGY_DIRECT;
 
     /**
-     * Reference resource in flow control with relevant resource or context.
+	 * 关联流量策略锁关联的resource
      */
     private String refResource;
 
     /**
-     * Rate limiter control behavior.
-     * 0. default(reject directly), 1. warm up, 2. rate limiter, 3. warm up + rate limiter
+	 * 0：直接拒绝
+	 * 1：预热模式
+	 * 2：匀速排队
+	 * 3：预热模式+匀速排队
      */
     private int controlBehavior = RuleConstant.CONTROL_BEHAVIOR_DEFAULT;
-
+	/**
+	 * 预热时间段
+	 */
     private int warmUpPeriodSec = 10;
 
-    /**
-     * Max queueing time in rate limiter behavior.
+	/**
+	 * 匀速排队的最大排队时间
      */
     private int maxQueueingTimeMs = 500;
 	/**
@@ -96,8 +90,8 @@ public class FlowRule extends AbstractRule {
      */
     private ClusterFlowConfig clusterConfig;
 
-    /**
-     * The traffic shaping (throttling) controller.
+	/**
+	 * 流量整形控制
      */
     private TrafficShapingController controller;
 

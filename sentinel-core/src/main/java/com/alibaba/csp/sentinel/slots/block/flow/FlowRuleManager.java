@@ -15,6 +15,15 @@
  */
 package com.alibaba.csp.sentinel.slots.block.flow;
 
+import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
+import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.node.metric.MetricTimerListener;
+import com.alibaba.csp.sentinel.property.DynamicSentinelProperty;
+import com.alibaba.csp.sentinel.property.PropertyListener;
+import com.alibaba.csp.sentinel.property.SentinelProperty;
+import com.alibaba.csp.sentinel.util.AssertUtil;
+import com.alibaba.csp.sentinel.util.StringUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -22,15 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
-import com.alibaba.csp.sentinel.log.RecordLog;
-import com.alibaba.csp.sentinel.util.AssertUtil;
-import com.alibaba.csp.sentinel.util.StringUtil;
-import com.alibaba.csp.sentinel.node.metric.MetricTimerListener;
-import com.alibaba.csp.sentinel.property.DynamicSentinelProperty;
-import com.alibaba.csp.sentinel.property.PropertyListener;
-import com.alibaba.csp.sentinel.property.SentinelProperty;
 
 /**
  * <p>
@@ -106,23 +106,30 @@ public class FlowRuleManager {
         return flowRules.containsKey(resource);
     }
 
-    public static boolean isOtherOrigin(String origin, String resourceName) {
-        if (StringUtil.isEmpty(origin)) {
-            return false;
-        }
+	/**
+	 * 判断origin是否属于另外指定的部分
+	 * @param origin       origin名称
+	 * @param resourceName resource名称
+	 * @return 是否属于另外指定的部分
+	 */
+	public static boolean isOtherOrigin(String origin, String resourceName) {
+		// origin名称为空，默认判定不属于另外指定的部分
+		if (StringUtil.isEmpty(origin)) {
+			return false;
+		}
 
-        List<FlowRule> rules = flowRules.get(resourceName);
-
-        if (rules != null) {
-            for (FlowRule rule : rules) {
-                if (origin.equals(rule.getLimitApp())) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
+		List<FlowRule> rules = flowRules.get(resourceName);
+		// 如果限制规则中，有针对此origin的流控规则，则判定不属于另外的部分
+		if (rules != null) {
+			for (FlowRule rule : rules) {
+				if (origin.equals(rule.getLimitApp())) {
+					return false;
+				}
+			}
+		}
+		// 没有针对此origin的流控规则，属于另外部分
+		return true;
+	}
 
     private static final class FlowPropertyListener implements PropertyListener<List<FlowRule>> {
 

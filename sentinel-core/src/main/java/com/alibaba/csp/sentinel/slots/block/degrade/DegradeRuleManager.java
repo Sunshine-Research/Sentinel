@@ -15,14 +15,6 @@
  */
 package com.alibaba.csp.sentinel.slots.block.degrade;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.alibaba.csp.sentinel.Constants;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.log.RecordLog;
@@ -35,6 +27,14 @@ import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.StringUtil;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author youji.zj
@@ -71,14 +71,15 @@ public final class DegradeRuleManager {
 
     public static void checkDegrade(ResourceWrapper resource, Context context, DefaultNode node, int count)
         throws BlockException {
-
+		// 获取当前resource的所有降级规则
         Set<DegradeRule> rules = degradeRules.get(resource.getName());
         if (rules == null) {
             return;
         }
-
+		// 遍历每个降级规则，分别进行检查
         for (DegradeRule rule : rules) {
             if (!rule.passCheck(context, node, count)) {
+				// 命中降级规则，抛出DegradeException
                 throw new DegradeException(rule.getLimitApp(), rule);
             }
         }

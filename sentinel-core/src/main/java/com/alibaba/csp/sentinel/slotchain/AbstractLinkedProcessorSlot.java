@@ -18,8 +18,7 @@ package com.alibaba.csp.sentinel.slotchain;
 import com.alibaba.csp.sentinel.context.Context;
 
 /**
- * @author qinan.qn
- * @author jialiang.linjl
+ * 抽象处理链，用于定义链上slot的流转
  */
 public abstract class AbstractLinkedProcessorSlot<T> implements ProcessorSlot<T> {
 

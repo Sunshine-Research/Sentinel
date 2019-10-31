@@ -23,9 +23,8 @@ import java.util.List;
 import java.util.ServiceLoader;
 
 /**
- * A provider for creating slot chains via resolved slot chain builder SPI.
- *
- * @author Eric Zhao
+ * 用于创建slot chain的提供者
+ * 通过构造slot chain建造器API来构造
  * @since 0.2.0
  */
 public final class SlotChainProvider {

@@ -15,13 +15,6 @@
  */
 package com.alibaba.csp.sentinel.slots.system;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import com.alibaba.csp.sentinel.Constants;
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
@@ -31,6 +24,13 @@ import com.alibaba.csp.sentinel.property.SentinelProperty;
 import com.alibaba.csp.sentinel.property.SimplePropertyListener;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * <p>
@@ -290,41 +290,41 @@ public class SystemRuleManager {
      * @throws BlockException when any system rule's threshold is exceeded.
      */
     public static void checkSystem(ResourceWrapper resourceWrapper) throws BlockException {
-        // Ensure the checking switch is on.
+		// 确认是否开启系统规则校验，默认关闭
         if (!checkSystemStatus.get()) {
             return;
         }
 
-        // for inbound traffic only
+		// 系统规则仅用于inbound流量
         if (resourceWrapper.getType() != EntryType.IN) {
             return;
         }
 
-        // total qps
+		// 校验当前QPS是否超出阈值
         double currentQps = Constants.ENTRY_NODE == null ? 0.0 : Constants.ENTRY_NODE.successQps();
         if (currentQps > qps) {
             throw new SystemBlockException(resourceWrapper.getName(), "qps");
         }
 
-        // total thread
+		// 校验当前请求线程数是否超出阈值
         int currentThread = Constants.ENTRY_NODE == null ? 0 : Constants.ENTRY_NODE.curThreadNum();
         if (currentThread > maxThread) {
             throw new SystemBlockException(resourceWrapper.getName(), "thread");
         }
-
+		// 校验当前平均响应时间是否超出阈值
         double rt = Constants.ENTRY_NODE == null ? 0 : Constants.ENTRY_NODE.avgRt();
         if (rt > maxRt) {
             throw new SystemBlockException(resourceWrapper.getName(), "rt");
         }
 
-        // load. BBR algorithm.
+		// 校验当前系统负载是否超出阈值
         if (highestSystemLoadIsSet && getCurrentSystemAvgLoad() > highestSystemLoad) {
             if (!checkBbr(currentThread)) {
                 throw new SystemBlockException(resourceWrapper.getName(), "load");
             }
         }
 
-        // cpu usage
+		// 校验当前CPU使用率是否超出阈值
         if (highestCpuUsageIsSet && getCurrentCpuUsage() > highestCpuUsage) {
             if (!checkBbr(currentThread)) {
                 throw new SystemBlockException(resourceWrapper.getName(), "cpu");

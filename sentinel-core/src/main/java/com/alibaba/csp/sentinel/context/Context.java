@@ -25,7 +25,7 @@ import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
 /**
  * 上下文类
  * 此类包含了当前调用的metadata：
- * 入口Node：当前调用树的跟节点
+ * 入口Node：当前调用树的根节点
  * 当前Entry：当前调用的节点
  * 当前Node：和Entry有关的数据分析
  * origin：如果想要分开控制不同的invoker/consumer，origin是很有用的
@@ -47,7 +47,7 @@ public class Context {
 	 */
 	private final boolean async;
 	/**
-	 * 调用树的入口节点
+	 * 调用树的根节点
 	 */
 	private DefaultNode entranceNode;
 	/**

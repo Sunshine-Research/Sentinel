@@ -23,8 +23,14 @@ import com.alibaba.csp.sentinel.EntryType;
  */
 public abstract class ResourceWrapper {
 
-    protected String name;
-    protected EntryType type = EntryType.OUT;
+	/**
+	 * resource名称
+	 */
+	protected String name;
+	/**
+	 * 请求类型
+	 */
+	protected EntryType type = EntryType.OUT;
 
     public abstract String getName();
 
@@ -45,8 +51,8 @@ public abstract class ResourceWrapper {
         return getName().hashCode();
     }
 
-    /**
-     * Only {@link #getName()} is considered.
+	/**
+	 * 只考虑{@link #getName()}
      */
     @Override
     public boolean equals(Object obj) {

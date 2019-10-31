@@ -85,7 +85,7 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
     public void entry(Context context, ResourceWrapper resourceWrapper, Object obj, int count, boolean prioritized, Object... args)
         throws Throwable {
         /*
-		 * 我们将使用上下文名称来代替资源ID作为map的key
+		 * 我们将使用上下文名称来代替resource id作为map的key
 		 * 因为同一个resource会全局共享相同的{@link ProcessorSlotChain}，无论在什么上下文中，
 		 * 所以如果代码走进{@link #entry(Context, ResourceWrapper, DefaultNode, int, Object...)}方法时，资源ID必须一样，但是上下文可能不一样
 		 * 如果我们在不同的上下文中使用{@link com.alibaba.csp.sentinel.SphU#entry(String resource)}来申请相同资源ID的token

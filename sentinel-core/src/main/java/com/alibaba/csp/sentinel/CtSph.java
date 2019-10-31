@@ -189,9 +189,7 @@ public class CtSph implements Sph {
 
 	/**
 	 * 对当前resource进行所有规则的过滤
-	 * <p>
 	 * 每个独立的resource会使用一个{@link ProcessorSlot}来进行规则校验，相同的resource会全局使用同一个{@link ProcessorSlot}
-	 * <p>
 	 * 需要注意的是，{@link ProcessorSlot}的总数一定不能超过{@link Constants#MAX_SLOT_CHAIN_SIZE}的值，也就是6000个。
 	 * 否则就不会进行规则校验
 	 * 在这个条件下，所有的请求会直接通过，不会进行检查或者抛出异常
@@ -300,7 +298,7 @@ public class CtSph implements Sph {
 	public Entry entry(String name, EntryType type, int count, Object... args) throws BlockException {
 		// 由于传入的是资源名称，使用StringResourceWrapper
 		StringResourceWrapper resource = new StringResourceWrapper(name, type);
-		//
+		// 进行资源上报
 		return entry(resource, count, args);
 	}
 

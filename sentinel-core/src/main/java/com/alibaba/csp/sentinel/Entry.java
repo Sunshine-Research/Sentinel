@@ -22,7 +22,6 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.util.TimeUtil;
 
 /**
- * Each {@link SphU}#entry() will return an {@link Entry}. This class holds information of current invocation:<br/>
  * 每次调用{@link SphU}#entry()方法时都会返回{@link Entry}
  * 这个类包含了并发调用时的信息，比如：
  * 申请资源时的创建时间，用于响应时间统计
