@@ -255,25 +255,34 @@ public class StatisticNode implements Node {
 
     @Override
     public long tryOccupyNext(long currentTime, int acquireCount, double threshold) {
+		// 获取当前最大的count，根据阈值*时间建个计算
         double maxCount = threshold * IntervalProperty.INTERVAL / 1000;
+		// 获取当前已经处于等待的资源
         long currentBorrow = rollingCounterInSecond.waiting();
+		// 如果当前窗口已经超额被占领，返回占领需要的等待桑建
         if (currentBorrow >= maxCount) {
             return OccupyTimeoutProperty.getOccupyTimeout();
         }
-
+		// 获取滑动窗口的时间总
         int windowLength = IntervalProperty.INTERVAL / SampleCountProperty.SAMPLE_COUNT;
+		// 计算当前时间窗口为周期，开始窗口的起点
+		//
         long earliestTime = currentTime - currentTime % windowLength + windowLength - IntervalProperty.INTERVAL;
 
         int idx = 0;
         /*
-         * Note: here {@code currentPass} may be less than it really is NOW, because time difference
-         * since call rollingCounterInSecond.pass(). So in high concurrency, the following code may
-         * lead more tokens be borrowed.
+		 * 注意：此处{@code currentPass}可能小于实际值，因为调用rollingCounterInSecond.pass()会产生时间差异
+		 * 所以在高并发情况下，下面的代码可能会导致多占领token
          */
+		// 当前窗口已经通过的请求数量
         long currentPass = rollingCounterInSecond.pass();
+		// 必须在开始窗口的时间起点小于当前时间戳时进行计算
         while (earliestTime < currentTime) {
+			// 等待时间=
             long waitInMs = idx * windowLength + windowLength - currentTime % windowLength;
+			// 如果等待时间超过了设置的占领等待时间
             if (waitInMs >= OccupyTimeoutProperty.getOccupyTimeout()) {
+				// 则使用设置的占领等待时间
                 break;
             }
             long windowPass = rollingCounterInSecond.getWindowPass(earliestTime);

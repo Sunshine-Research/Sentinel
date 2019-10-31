@@ -26,22 +26,20 @@ import com.alibaba.csp.sentinel.node.Node;
  */
 public interface TrafficShapingController {
 
-    /**
-     * Check whether given resource entry can pass with provided count.
-     *
-     * @param node resource node
-     * @param acquireCount count to acquire
-     * @param prioritized whether the request is prioritized
-     * @return true if the resource entry can pass; false if it should be blocked
-     */
-    boolean canPass(Node node, int acquireCount, boolean prioritized);
+	/**
+	 * 给定的resource entry是否可以以提供的获取token数量通过
+	 * @param node         数据统计节点
+	 * @param acquireCount 需要获取的token数量
+	 * @param prioritized  请求是否开启优先级策略
+	 * @return resource可以通过，返回true，发生阻塞则返回faslse
+	 */
+	boolean canPass(Node node, int acquireCount, boolean prioritized);
 
-    /**
-     * Check whether given resource entry can pass with provided count.
-     *
-     * @param node resource node
-     * @param acquireCount count to acquire
-     * @return true if the resource entry can pass; false if it should be blocked
-     */
-    boolean canPass(Node node, int acquireCount);
+	/**
+	 * 给定的resource entry是否可以以提供的获取token数量通过
+	 * @param node         数据统计节点
+	 * @param acquireCount 需要获取的token数量
+	 * @return resource可以通过，返回true，发生阻塞则返回faslse
+	 */
+	boolean canPass(Node node, int acquireCount);
 }

@@ -20,22 +20,17 @@ import com.alibaba.csp.sentinel.property.SentinelProperty;
 import com.alibaba.csp.sentinel.property.SimplePropertyListener;
 
 /**
- * @author jialiang.linjl
- * @author Carpenter Lee
+ * 占领等待时间属性，用于提供占领的等待时间
  * @since 1.5.0
  */
 public class OccupyTimeoutProperty {
 
     /**
-     * <p>
-     * Max occupy timeout in milliseconds. Requests with priority can occupy tokens of the future statistic
-     * window, and {@code occupyTimeout} limit the max time length that can be occupied.
-     * </p>
-     * <p>
-     * Note that the timeout value should never be greeter than {@link IntervalProperty#INTERVAL}.
-     * </p>
-     * DO NOT MODIFY this value directly, use {@link #updateTimeout(int)},
-     * otherwise the modification will not take effect.
+	 * 最大占领等待时间，单位ms
+	 * 开启优先级策略的请求，可以占领未来数据分析窗口产生的token，而{@code occupyTimeout}规定了token可以被占用的最大时间
+	 * 需要注意的是，等待时间不能超过滑动窗口时间
+	 * 不要直接修改这个值，请使用{@link #updateTimeout(int)}方法进行修改
+	 * 否则修改可能不会生效
      */
     private static volatile int occupyTimeout = 500;
 
@@ -55,24 +50,23 @@ public class OccupyTimeoutProperty {
     }
 
     /**
-     * Update the timeout value.</br>
-     * Note that the time out should never greeter than {@link IntervalProperty#INTERVAL},
-     * or it will be ignored.
-     *
-     * @param newInterval new value.
-     */
-    public static void updateTimeout(int newInterval) {
-        if (newInterval < 0) {
-            RecordLog.warn("[OccupyTimeoutProperty] Illegal timeout value will be ignored: " + occupyTimeout);
-            return;
-        }
-        if (newInterval > IntervalProperty.INTERVAL) {
-            RecordLog.warn("[OccupyTimeoutProperty] Illegal timeout value will be ignored: " + occupyTimeout
-                + ", should <= " + IntervalProperty.INTERVAL);
-            return;
-        }
-        if (newInterval != occupyTimeout) {
-            occupyTimeout = newInterval;
+	 * 更新等待时间
+	 * 需要注意的是等待时间不能超过滑动窗口时间
+	 * 如果超过了滑动窗口的时间，新的等待时间不会被更新
+	 * @param newInterval 更新后的值
+	 */
+	public static void updateTimeout(int newInterval) {
+		if (newInterval < 0) {
+			RecordLog.warn("[OccupyTimeoutProperty] Illegal timeout value will be ignored: " + occupyTimeout);
+			return;
+		}
+		if (newInterval > IntervalProperty.INTERVAL) {
+			RecordLog.warn("[OccupyTimeoutProperty] Illegal timeout value will be ignored: " + occupyTimeout
+					+ ", should <= " + IntervalProperty.INTERVAL);
+			return;
+		}
+		if (newInterval != occupyTimeout) {
+			occupyTimeout = newInterval;
         }
         RecordLog.info("[OccupyTimeoutProperty] occupyTimeout updated to: " + occupyTimeout);
     }

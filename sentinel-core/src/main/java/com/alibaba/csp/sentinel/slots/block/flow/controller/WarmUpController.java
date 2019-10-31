@@ -15,11 +15,11 @@
  */
 package com.alibaba.csp.sentinel.slots.block.flow.controller;
 
-import java.util.concurrent.atomic.AtomicLong;
-
-import com.alibaba.csp.sentinel.util.TimeUtil;
 import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
+import com.alibaba.csp.sentinel.util.TimeUtil;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * <p>
@@ -58,120 +58,147 @@ import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
  * our cold (minimum) rate to our stable (maximum) rate, x (or q) is the
  * occupied token.
  * </p>
- *
+ * 假定permitsPerSecond=10，stableInterval=100ms，coldInterval=300ms(coldFactor=3)
+ * 当达到maxPermits时，系统处于最冷状态，获取一个permit需要300ms，如果storedPermits小于thresholdPermits值时，只需要100ms。
+ * 预热的时间是我们在构造的时候指定的
  * @author jialiang.linjl
  */
 public class WarmUpController implements TrafficShapingController {
 
-    protected double count;
-    private int coldFactor;
-    protected int warningToken = 0;
-    private int maxToken;
-    protected double slope;
+	protected double count;
+	protected int warningToken = 0;
+	protected double slope;
+	protected AtomicLong storedTokens = new AtomicLong(0);
+	protected AtomicLong lastFilledTime = new AtomicLong(0);
+	private int coldFactor;
+	private int maxToken;
 
-    protected AtomicLong storedTokens = new AtomicLong(0);
-    protected AtomicLong lastFilledTime = new AtomicLong(0);
+	public WarmUpController(double count, int warmUpPeriodInSec, int coldFactor) {
+		construct(count, warmUpPeriodInSec, coldFactor);
+	}
 
-    public WarmUpController(double count, int warmUpPeriodInSec, int coldFactor) {
-        construct(count, warmUpPeriodInSec, coldFactor);
-    }
+	public WarmUpController(double count, int warmUpPeriodInSec) {
+		construct(count, warmUpPeriodInSec, 3);
+	}
 
-    public WarmUpController(double count, int warmUpPeriodInSec) {
-        construct(count, warmUpPeriodInSec, 3);
-    }
+	private void construct(double count, int warmUpPeriodInSec, int coldFactor) {
 
-    private void construct(double count, int warmUpPeriodInSec, int coldFactor) {
+		if (coldFactor <= 1) {
+			throw new IllegalArgumentException("Cold factor should be larger than 1");
+		}
 
-        if (coldFactor <= 1) {
-            throw new IllegalArgumentException("Cold factor should be larger than 1");
-        }
+		this.count = count;
 
-        this.count = count;
+		this.coldFactor = coldFactor;
+		// SmoothWarmingUp算法希望，token获取的速率跟它所需要的时间比例保持一致，所以梯形面积是长方形面积的2倍
+		// warmUpPeriodInSec是梯形面积，warningToken * (1/count) = warmUpPeriodInSec / 2
+		// 为什么是2倍，coldFactor默认写死为3，超过稳定时间，获取token的最长时间是3*稳定时间
+		warningToken = (int) (warmUpPeriodInSec * count) / (coldFactor - 1);
+		// 根据梯形面积，我们可以求出maxToken的值
+		// (maxToken-warningToken) * (coldFactor - 1) * (1 / count) = 2 * warmUpPeriodInSec
+		maxToken = warningToken + (int) (2 * warmUpPeriodInSec * count / (1.0 + coldFactor));
 
-        this.coldFactor = coldFactor;
+		// 斜率计算公式
+		// y1 = kx1 y2 = kx2 => k = (y1 - y2) / (x1 - x2)
+		// coldFactor * (1 / count) - (1 / count) = k * (maxToken - warningToken)
+		slope = (coldFactor - 1.0) / count / (maxToken - warningToken);
 
-        // thresholdPermits = 0.5 * warmupPeriod / stableInterval.
-        // warningToken = 100;
-        warningToken = (int)(warmUpPeriodInSec * count) / (coldFactor - 1);
-        // / maxPermits = thresholdPermits + 2 * warmupPeriod /
-        // (stableInterval + coldInterval)
-        // maxToken = 200
-        maxToken = warningToken + (int)(2 * warmUpPeriodInSec * count / (1.0 + coldFactor));
+	}
 
-        // slope
-        // slope = (coldIntervalMicros - stableIntervalMicros) / (maxPermits
-        // - thresholdPermits);
-        slope = (coldFactor - 1.0) / count / (maxToken - warningToken);
+	@Override
+	public boolean canPass(Node node, int acquireCount) {
+		return canPass(node, acquireCount, false);
+	}
 
-    }
+	@Override
+	public boolean canPass(Node node, int acquireCount, boolean prioritized) {
+		// 获取当前窗口通过的QPS
+		long passQps = (long) node.passQps();
+		// 获取上一个窗口通过的QPS
+		long previousQps = (long) node.previousPassQps();
+		// 同步最新的可用token数量，存储于storedTokens中
+		syncToken(previousQps);
 
-    @Override
-    public boolean canPass(Node node, int acquireCount) {
-        return canPass(node, acquireCount, false);
-    }
+		long restToken = storedTokens.get();
+		// 开始计算它的斜率
+		// 如果进入了警戒线，开始调整他的qps
+		if (restToken >= warningToken) {
+			long aboveToken = restToken - warningToken;
+			// 消耗的速度要比warning快，但是要比慢
+			// current interval = restToken*slope+1/count
+			// 通过计算当前可用token和警戒线的距离，来计算当前的QPS
+			// aboveToken * slope + 1.0 / count = 处于预热区内，当前比率下，获取token的时间
+			// 1/获取token的时间，即为当前的QPS
+			double warningQps = Math.nextUp(1.0 / (aboveToken * slope + 1.0 / count));
+			// 如果没有超出预热的QPS，则判定通过
+			if (passQps + acquireCount <= warningQps) {
+				return true;
+			}
+		} else {
+			// 如果处于热区域内，没有超过规则设定的阈值，则判定通过
+			if (passQps + acquireCount <= count) {
+				return true;
+			}
+		}
+		// 否则，判定不通过
+		return false;
+	}
 
-    @Override
-    public boolean canPass(Node node, int acquireCount, boolean prioritized) {
-        long passQps = (long) node.passQps();
+	protected void syncToken(long passQps) {
+		// 获取当前的时间戳
+		long currentTime = TimeUtil.currentTimeMillis();
+		// 精确到秒的时间戳
+		currentTime = currentTime - currentTime % 1000;
+		// 获取上一次扩容的时间
+		long oldLastFillTime = lastFilledTime.get();
+		// 如果时间不对，不进行同步
+		if (currentTime <= oldLastFillTime) {
+			return;
+		}
+		// token数量旧值
+		long oldValue = storedTokens.get();
+		// 计算新的token数量
+		long newValue = coolDownTokens(currentTime, passQps);
+		// 更新token的值
+		if (storedTokens.compareAndSet(oldValue, newValue)) {
+			// 更新当前可用的值
+			long currentValue = storedTokens.addAndGet(0 - passQps);
+			if (currentValue < 0) {
+				storedTokens.set(0L);
+			}
+			// 设置上一次扩容的时间戳
+			lastFilledTime.set(currentTime);
+		}
+	}
 
-        long previousQps = (long) node.previousPassQps();
-        syncToken(previousQps);
+	/**
+	 * 计算新的token数量
+	 * @param currentTime 当前时间戳
+	 * @param passQps     通过的QPS
+	 * @return 新token数量
+	 */
+	private long coolDownTokens(long currentTime, long passQps) {
+		long oldValue = storedTokens.get();
+		long newValue = oldValue;
 
-        // 开始计算它的斜率
-        // 如果进入了警戒线，开始调整他的qps
-        long restToken = storedTokens.get();
-        if (restToken >= warningToken) {
-            long aboveToken = restToken - warningToken;
-            // 消耗的速度要比warning快，但是要比慢
-            // current interval = restToken*slope+1/count
-            double warningQps = Math.nextUp(1.0 / (aboveToken * slope + 1.0 / count));
-            if (passQps + acquireCount <= warningQps) {
-                return true;
-            }
-        } else {
-            if (passQps + acquireCount <= count) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    protected void syncToken(long passQps) {
-        long currentTime = TimeUtil.currentTimeMillis();
-        currentTime = currentTime - currentTime % 1000;
-        long oldLastFillTime = lastFilledTime.get();
-        if (currentTime <= oldLastFillTime) {
-            return;
-        }
-
-        long oldValue = storedTokens.get();
-        long newValue = coolDownTokens(currentTime, passQps);
-
-        if (storedTokens.compareAndSet(oldValue, newValue)) {
-            long currentValue = storedTokens.addAndGet(0 - passQps);
-            if (currentValue < 0) {
-                storedTokens.set(0L);
-            }
-            lastFilledTime.set(currentTime);
-        }
-
-    }
-
-    private long coolDownTokens(long currentTime, long passQps) {
-        long oldValue = storedTokens.get();
-        long newValue = oldValue;
-
-        // 添加令牌的判断前提条件:
-        // 当令牌的消耗程度远远低于警戒线的时候
-        if (oldValue < warningToken) {
-            newValue = (long)(oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
-        } else if (oldValue > warningToken) {
-            if (passQps < (int)count / coldFactor) {
-                newValue = (long)(oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
-            }
-        }
-        return Math.min(newValue, maxToken);
-    }
+		// 添加token的判断前提条件:
+		// 当token的消耗程度远远低于警戒线的时候
+		if (oldValue < warningToken) {
+			// 处于长方形区域内，属于热区，正常添加token
+			// 根据count数，每秒扩充token
+			newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
+		} else if (oldValue > warningToken) {
+			// 当前判定仍处于冷启动阶段
+			// 太绕了，我佛了
+			// 当前最慢的QPS计算公式：1 / (coldFactor * (1 / count)) => count / coldFactor
+			// 当前的QPS已经比最慢的还慢了，需要添加token
+			if (passQps < (int) count / coldFactor) {
+				// 否则就需要添加token
+				newValue = (long) (oldValue + (currentTime - lastFilledTime.get()) * count / 1000);
+			}
+		}
+		// 取计算出的token新值和容量上限的二者的最小值
+		return Math.min(newValue, maxToken);
+	}
 
 }
