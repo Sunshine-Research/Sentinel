@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 匀速速率限制-流量整形控制器
- * 相当于令牌桶流控规则方式
+ * 相当于token桶流控规则方式
  * 请求距离上个通过的请求时间间隔不小于预设值，则让当前请求通过
  * 否则，计算当前请求的预期通过时间，如果该请求的预期通过时间小于规则预设的maxQueueingTimeMs，则该请求会等待直到预设时间后才会通过
  * 若预期的通过实践超出maxQueueingTimeMs，则直接判定不通过
@@ -47,11 +47,11 @@ public class RateLimiterController implements TrafficShapingController {
 
     @Override
     public boolean canPass(Node node, int acquireCount, boolean prioritized) {
-		// 如果请求的令牌是非正整数，直接通过
+		// 如果请求的token是非正整数，直接通过
         if (acquireCount <= 0) {
             return true;
         }
-		// 如果当前可获取的令牌数量是非正整数，判定不通过
+		// 如果当前可获取的token数量是非正整数，判定不通过
 		// 否则，costTime的计算将是最大的，并且在某些情况下，等待时间会溢出
         if (count <= 0) {
             return false;
@@ -72,7 +72,7 @@ public class RateLimiterController implements TrafficShapingController {
 			// 如果期待的时间是在未来的时间戳
 			// 计算等待时间
             long waitTime = costTime + latestPassedTime.get() - TimeUtil.currentTimeMillis();
-			// 如果等待时间大于等待时间，判定不通过
+			// 如果等待时间大于排队时间，判定不通过
             if (waitTime > maxQueueingTimeMs) {
                 return false;
             } else {

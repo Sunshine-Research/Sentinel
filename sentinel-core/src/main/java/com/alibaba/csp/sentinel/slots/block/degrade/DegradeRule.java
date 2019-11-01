@@ -199,7 +199,7 @@ public class DegradeRule extends AbstractRule {
 			double success = clusterNode.successQps();
 			// 获取当前resource的总QPS
 			double total = clusterNode.totalQps();
-			// 如果通总QPS小于阈值上线，判定通过降级规则检查
+			// 如果总QPS小于阈值上线，判定通过降级规则检查
 			if (total < RT_MAX_EXCEED_N) {
 				return true;
 			}

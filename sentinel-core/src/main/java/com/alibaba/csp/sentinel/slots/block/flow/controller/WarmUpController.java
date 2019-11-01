@@ -91,6 +91,7 @@ public class WarmUpController implements TrafficShapingController {
 
 		this.coldFactor = coldFactor;
 		// SmoothWarmingUp算法希望，token获取的速率跟它所需要的时间比例保持一致，所以梯形面积是长方形面积的2倍
+		// 稳定情况下获取的token面积为x，那么预热区域内的token面积为(coldFactor - 1) * x
 		// warmUpPeriodInSec是梯形面积，warningToken * (1/count) = warmUpPeriodInSec / 2
 		// 为什么是2倍，coldFactor默认写死为3，超过稳定时间，获取token的最长时间是3*稳定时间
 		warningToken = (int) (warmUpPeriodInSec * count) / (coldFactor - 1);
@@ -102,7 +103,6 @@ public class WarmUpController implements TrafficShapingController {
 		// y1 = kx1 y2 = kx2 => k = (y1 - y2) / (x1 - x2)
 		// coldFactor * (1 / count) - (1 / count) = k * (maxToken - warningToken)
 		slope = (coldFactor - 1.0) / count / (maxToken - warningToken);
-
 	}
 
 	@Override
@@ -124,7 +124,7 @@ public class WarmUpController implements TrafficShapingController {
 		// 如果进入了警戒线，开始调整他的qps
 		if (restToken >= warningToken) {
 			long aboveToken = restToken - warningToken;
-			// 消耗的速度要比warning快，但是要比慢
+			// 消耗的速度要比warning快
 			// current interval = restToken*slope+1/count
 			// 通过计算当前可用token和警戒线的距离，来计算当前的QPS
 			// aboveToken * slope + 1.0 / count = 处于预热区内，当前比率下，获取token的时间
