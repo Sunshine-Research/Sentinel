@@ -16,47 +16,28 @@
 package com.alibaba.csp.sentinel.property;
 
 /**
- * <p>
- * This class holds current value of the config, and is responsible for informing all {@link PropertyListener}s
- * added on this when the config is updated.
- * </p>
- * <p>
- * Note that not every {@link #updateValue(Object newValue)} invocation should inform the listeners, only when
- * {@code newValue} is not Equals to the old value, informing is needed.
- * </p>
- *
- * @param <T> the target type.
- * @author Carpenter Lee
+ * 持有了当前配置的值，并且负责在配置需要更新时，通知所有{@link PropertyListener}
+ * 需要注意的是每次{@link #updateValue(Object newValue)}调用都需要通知listeners，仅当{@code newValue}不等于旧值是，才会发生替换
  */
 public interface SentinelProperty<T> {
 
-    /**
-     * <p>
-     * Add a {@link PropertyListener} to this {@link SentinelProperty}. After the listener is added,
-     * {@link #updateValue(Object)} will inform the listener if needed.
-     * </p>
-     * <p>
-     * This method can invoke multi times to add more than one listeners.
-     * </p>
-     *
-     * @param listener listener to add.
-     */
-    void addListener(PropertyListener<T> listener);
+	/**
+	 * 将属性更新listener添加到Sentinel属性中
+	 * Sentinel属性支持多listener
+	 * @param listener 需要添加的listener
+	 */
+	void addListener(PropertyListener<T> listener);
 
-    /**
-     * Remove the {@link PropertyListener} on this. After removing, {@link #updateValue(Object)}
-     * will not inform the listener.
-     *
-     * @param listener the listener to remove.
-     */
-    void removeListener(PropertyListener<T> listener);
+	/**
+	 * 移除Sentinel属性listener
+	 * @param listener 需要移除的listener
+	 */
+	void removeListener(PropertyListener<T> listener);
 
-    /**
-     * Update the {@code newValue} as the current value of this property and inform all {@link PropertyListener}s
-     * added on this only when new {@code newValue} is not Equals to the old value.
-     *
-     * @param newValue the new value.
-     * @return true if the value in property has been updated, otherwise false
-     */
-    boolean updateValue(T newValue);
+	/**
+	 * 更新属性的值，并通知所有的listener
+	 * @param newValue 需要更新的值
+	 * @return 如果属性中的值已经被更新，返回true，否则，返回false
+	 */
+	boolean updateValue(T newValue);
 }

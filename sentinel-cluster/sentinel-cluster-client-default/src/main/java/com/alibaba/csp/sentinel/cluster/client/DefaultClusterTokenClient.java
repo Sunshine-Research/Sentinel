@@ -159,6 +159,7 @@ public class DefaultClusterTokenClient implements ClusterTokenClient {
 
     @Override
     public void start() throws Exception {
+		// 设置乐观锁，代表当前client处于已开启的状态
         if (shouldStart.compareAndSet(false, true)) {
             startClientIfScheduled();
         }

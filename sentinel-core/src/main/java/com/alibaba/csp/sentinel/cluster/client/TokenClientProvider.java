@@ -27,7 +27,7 @@ public final class TokenClientProvider {
     private static ClusterTokenClient client = null;
 
     static {
-        // Not strictly thread-safe, but it's OK since it will be resolved only once.
+		// 并非严格意义上的线程安全，如果只调用一次，Sentinel感觉还OK
         resolveTokenClientInstance();
     }
 
@@ -36,6 +36,7 @@ public final class TokenClientProvider {
     }
 
     private static void resolveTokenClientInstance() {
+		// 使用SPI加载ClusterTokenClient，默认是DefaultClusterTokenClient
         ClusterTokenClient resolvedClient = SpiLoader.loadFirstInstance(ClusterTokenClient.class);
         if (resolvedClient == null) {
             RecordLog.info(
